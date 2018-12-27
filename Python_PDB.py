@@ -3,7 +3,7 @@ import numpy as np
 from Bio.PDB.PDBParser import PDBParser
 
 
-## The "infinitesimal"
+# The "infinitesimal"
 epsilon = 1e-9
 
 
@@ -78,22 +78,97 @@ def Get_AnimoNVtr(resis, window = 1):
     return listNVtr
 
 
+def Kabsch(from_points, to_points):
+    ## Checking input...
+    assert len(from_points) == len(to_points)
+
+    ## Centering the points sets
+    centroid_from = np.sum(from_points, axis=0) / len(from_points)
+    centroid_to = np.sum(to_points, axis=0) / len(to_points)
+    from_points = from_points.astype(dtype=np.float64) - centroid_from
+    to_points = to_points.astype(dtype=np.float64) - centroid_to
+
+    ## Cross variance matrix cv_mat
+    cv_mat = np.dot(from_points.T,  to_points)
+
+    ## SVD
+    mat_U, mat_S, mat_VT = np.linalg.svd(cv_mat)
+
+    ## Solving for final rotation matrix mat_rot
+    val_d = np.linalg.det(np.dot(mat_VT.T, mat_U.T))
+    mat_rot = np.dot(mat_VT.T, np.array([[1, 0, 0],
+                                         [0, 1, 0],
+                                         [0, 0, val_d]]))
+    mat_rot = np.dot(mat_rot, mat_U.T)
+
+    return mat_rot
+
+
+def Get_RotMatrix(roll=None, pitch=None, yaw=None):
+    if roll is None:
+        rot_xangle = np.random.rand()
+    else:
+        rot_xangle = roll
+    if pitch is None:
+        rot_yangle = np.random.rand()
+    else:
+        rot_yangle = pitch
+    if yaw is None:
+        rot_zangle = np.random.rand()
+    else:
+        rot_zangle = yaw
+
+    rot_xmat = np.array([[1, 0, 0],
+                         [0, math.cos(rot_xangle), -math.sin(rot_xangle)],
+                         [0, math.sin(rot_xangle), math.cos(rot_xangle)]])
+    rot_ymat = np.array([[math.cos(rot_yangle), 0, math.sin(rot_yangle)],
+                         [0, 1, 0],
+                         [-math.sin(rot_yangle), 0, math.cos(rot_yangle)]])
+    rot_zmat = np.array([[math.cos(rot_zangle), -math.sin(rot_zangle), 0],
+                         [math.sin(rot_zangle), math.cos(rot_zangle), 0],
+                         [0, 0, 1]])
+
+    rot_allmat = np.dot(np.dot(rot_zmat, rot_ymat), rot_xmat)
+
+    return rot_allmat
+
+
 if __name__ == "__main__":
-    pp = PDBParser(PERMISSIVE=1)
+    pass
 
-    id = "1MBA"
-    filename = "C:/Users/Jerry/CLionProjects/PDB2RMSD_2/example/1MBA.pdb"
-    struct = pp.get_structure(id, filename)
+#    pp = PDBParser(PERMISSIVE=1)
+#
+#    id = "1MBA"
+#    filename = "C:/Users/Jerry/CLionProjects/PDB2RMSD_2/example/1MBA.pdb"
+#    struct = pp.get_structure(id, filename)
+#
+#    model = struct[0]
+#    chain = model["A"]
+#
+#    ## Getting the animo acids residues
+#    resis = [resi for resi in chain if resi.get_id()[0] == ' ']
+#    phipsi_list = Calc_phipsi(resis)
+#
+#    i = 0
+#    for line in phipsi_list:
+#        print(str(i) + " " + str(line))
+#        i += 1
 
-    model = struct[0]
-    chain = model["A"]
+rand_from_points = np.random.rand(15, 3)                                        # Generating a random set of 3-D points
+centroid_from = np.sum(rand_from_points, axis=0) / len(rand_from_points)
+rand_from_points = rand_from_points.astype(dtype=np.float64) - centroid_from    # Now centeroid at the coordinate origin
+rot_allmat = Get_RotMatrix()
+rand_to_points = [np.dot(rot_allmat, rand_from_points[0])]
+for i in range(1, len(rand_from_points)):
+    rand_to_points.append(np.dot(rot_allmat, rand_from_points[i]))
+rand_to_points = np.array(rand_to_points)                                       # Rotating the points
+for i in range(0, 3):
+    rand_to_points[np.random.randint(0, 14)] += \
+        np.random.rand(1, 3)[0] * .1                                            # Adding pertubation
 
-    ## Getting the animo acids residues
-    resis = [resi for resi in chain if resi.get_id()[0] == ' ']
-    phipsi_list = Calc_phipsi(resis)
+kab_rotmat = Kabsch(rand_from_points, rand_to_points)                           # "Kabsching"...
 
-    i = 0
-    for line in phipsi_list:
-        print(str(i) + " " + str(line))
-        i += 1
-
+print("The randomly generated rotation matrix:")
+print(rot_allmat)
+print("\nThe Kabsch deduced rotation matrix:")
+print(kab_rotmat)
