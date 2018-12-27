@@ -1,6 +1,8 @@
+import re
 import math
 import numpy as np
 from Bio.PDB.PDBParser import PDBParser
+from Bio.PDB.DSSP import DSSP
 
 
 # The "infinitesimal"
@@ -133,42 +135,59 @@ def Get_RotMatrix(roll=None, pitch=None, yaw=None):
     return rot_allmat
 
 
-if __name__ == "__main__":
-    pass
+def Get_DSSP(filename, struct_no=0):
+    pp = PDBParser(PERMISSIVE=1)
+    try:
+        pdb_id = re.findall(r"([^/]+?)\.pdb$", filename)[0]
+    except IndexError as ie:
+        print("The input file should be a .pdb.")
+        raise(ie)
 
-#    pp = PDBParser(PERMISSIVE=1)
-#
-#    id = "1MBA"
-#    filename = "C:/Users/Jerry/CLionProjects/PDB2RMSD_2/example/1MBA.pdb"
-#    struct = pp.get_structure(id, filename)
-#
-#    model = struct[0]
-#    chain = model["A"]
-#
-#    ## Getting the animo acids residues
-#    resis = [resi for resi in chain if resi.get_id()[0] == ' ']
-#    phipsi_list = Calc_phipsi(resis)
-#
-#    i = 0
-#    for line in phipsi_list:
-#        print(str(i) + " " + str(line))
-#        i += 1
+    struct = pp.get_structure(pdb_id, filename)
 
-rand_from_points = np.random.rand(15, 3)                                        # Generating a random set of 3-D points
-centroid_from = np.sum(rand_from_points, axis=0) / len(rand_from_points)
-rand_from_points = rand_from_points.astype(dtype=np.float64) - centroid_from    # Now centeroid at the coordinate origin
-rot_allmat = Get_RotMatrix()
-rand_to_points = [np.dot(rot_allmat, rand_from_points[0])]
-for i in range(1, len(rand_from_points)):
-    rand_to_points.append(np.dot(rot_allmat, rand_from_points[i]))
-rand_to_points = np.array(rand_to_points)                                       # Rotating the points
-for i in range(0, 3):
-    rand_to_points[np.random.randint(0, 14)] += \
-        np.random.rand(1, 3)[0] * .1                                            # Adding pertubation
+    try:
+        model = struct[struct_no]
+    except IndexError as ie:
+        print("No such structure with number \"" + struct_no + "\"")
+        raise(ie)
 
-kab_rotmat = Kabsch(rand_from_points, rand_to_points)                           # "Kabsching"...
+    dssp = DSSP(model, filename, dssp="mkdssp")
+    return [dssp[i] for i in list(dssp.keys())]
 
-print("The randomly generated rotation matrix:")
-print(rot_allmat)
-print("\nThe Kabsch deduced rotation matrix:")
-print(kab_rotmat)
+
+def Get_AminoResidues(filename, struct_no=0, chain_id="A"):
+    pp = PDBParser(PERMISSIVE=1)
+    try:
+        id = re.findall(r"([^/]+?)\.pdb$", filename)[0]
+    except IndexError as ie:
+        print("The input file should be a .pdb.")
+        raise(ie)
+
+    struct = pp.get_structure(id, filename)
+
+    model = struct[struct_no]
+    chain = model[chain_id]
+
+    # Getting the animo acids residues
+    return [resi for resi in chain if resi.get_id()[0] == ' ']
+
+
+if __name__ == "__main__":      # Test drive / codes
+    rand_from_points = np.random.rand(15, 3)                                        # Generating a random set of 3-D points
+    centroid_from = np.sum(rand_from_points, axis=0) / len(rand_from_points)
+    rand_from_points = rand_from_points.astype(dtype=np.float64) - centroid_from    # Now centeroid at the coordinate origin
+    rot_allmat = Get_RotMatrix()
+    rand_to_points = [np.dot(rot_allmat, rand_from_points[0])]
+    for i in range(1, len(rand_from_points)):
+        rand_to_points.append(np.dot(rot_allmat, rand_from_points[i]))
+    rand_to_points = np.array(rand_to_points)                                       # Rotating the points
+    for i in range(0, 3):
+        rand_to_points[np.random.randint(0, 14)] += \
+            np.random.rand(1, 3)[0] * .1                                            # Adding pertubation
+
+    kab_rotmat = Kabsch(rand_from_points, rand_to_points)                           # "Kabsching"...
+
+    print("The randomly generated rotation matrix:")
+    print(rot_allmat)
+    print("\nThe Kabsch deduced rotation matrix:")
+    print(kab_rotmat)

@@ -40,16 +40,10 @@ double Sim_amino_vtrCos(void* elem_1, void* elem_2) {
     Amino* amino_2 = (Amino*) elem_2;
 
     // If the Sec Struct is different, assign a very negative similarity value
-    if (amino_1->ss != amino_2->ss)
-        return -1e5;
+    //if (amino_1->ss == amino_2->ss)
+    //    return 1e2;
 
     // Calculating the cosine value of the angle
-    return Vtr_angle_cosine(amino_1->vector, amino_2->vector);
-}
-
-int Show_Amino(Amino* ami) {
-    Vtr* vtr = ami->vector;
-    printf("Vtr = (%5f, %5f, %5f)\n", vtr->x, vtr->y, vtr->z);
-    printf("%c", ami->ss);
+    return acos(Vtr_angle_cosine(amino_1->vector, amino_2->vector)) * (180 / acos(-1.0));
 }
 
