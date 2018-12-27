@@ -87,11 +87,12 @@ void NW_Align(void** seq_1, char* chr_seq_1, int len_seq_1,
         dirMat[row] = dirMat[0] + row * (len_seq_1 + 2);
     }
 
-    //for(int i = 0; i <= len_seq_1 + 1; i++) {
-    //    scoresMat[i] = (float*)malloc((len_seq_2 + 2) * sizeof(float));
-    //    dirMat[i] = (char*)malloc((len_seq_2 + 2) * sizeof(char));
-    //}
-
+    /*
+    *   The Rules for dirMat:
+    *   Coming from the **LEFT**, dirMat[i][j] > 0;
+    *   Coming from the **DIAG**, dirMat[i][j] = 0;
+    *   Coming from the **RIGHT**, dirMat[i][j] < 0.
+    */
 
     // Setting init values
     scoresMat[0][0] = 0;
@@ -116,15 +117,12 @@ void NW_Align(void** seq_1, char* chr_seq_1, int len_seq_1,
     for(int i = 1; i <= len_seq_2; i++) {
         for(int j = 1; j <= len_seq_1; j++) {
             // Considering "local" (2x2) elements
-            float sim_val = sim_func(seq_2[i - 1], seq_1[j - 1]);
             scoreValues[0] = scoresMat[i][j - 1] - gap_start;
-            scoreValues[1] = scoresMat[i - 1][j - 1] + sim_val;
+            scoreValues[1] = scoresMat[i - 1][j - 1] + sim_func(seq_2[i - 1], seq_1[j - 1]);
             scoreValues[2] = scoresMat[i - 1][j] - gap_start;
 
-            float max_argval = 0.0;
-            int max_arg = arg_max(scoreValues, &max_argval, 3);
-            scoresMat[i][j] = max_argval;
-            dirMat[i][j] = max_arg - 1;
+            // Finding the max value
+            dirMat[i][j] = arg_max(scoreValues, &scoresMat[i][j], 3) - 1;
 
             // Considering "distance" (row/col) elements
             // A distant, previous **ROW** elem "travels" here?
@@ -144,49 +142,43 @@ void NW_Align(void** seq_1, char* chr_seq_1, int len_seq_1,
                     dirMat[i][j] = k - i;
                 }
             }
-
-            //printf("Now at (%d, %d)\n", i, j);
-            //printf("Now at (%d, %d), scoreValues = (%f, %f, %f), max_arg = %d, max_val = %f. \n", i, j, scoreValues[0], scoreValues[1], scoreValues[2], max_arg, max_argval);
-            //printf("\tD: %f, %d; L: %f, %d; T: %f, %d. SimValue(%c, %c) = %f\n", scoresMat[i-1][j-1], dirMat[i-1][j-1], scoresMat[i][j-1], dirMat[i][j-1], scoresMat[i-1][j], dirMat[i-1][j], chr_seq_2[i-1], chr_seq_1[j-1], sim_val);
         }
     }
 
 
-
     print_matrix(scoresMat, chr_seq_1, chr_seq_2, len_seq_1, len_seq_2);
-    return;
-
-
 
 
     // Finding start point
 
     int max_row = 0;
-    int max_col = len_seq_2;
-    int max_val = scoresMat[0][len_seq_2];
+    int max_col = len_seq_1;
+    int max_val = scoresMat[0][len_seq_1];
     
-    for(int i = 1; i <= len_seq_1; i++) {
-        if (scoresMat[i][len_seq_2] > max_val) {
+    for(int i = 1; i <= len_seq_2; i++) {
+        if (scoresMat[i][len_seq_1] > max_val) {
             max_row = i;
-            max_col = len_seq_2;
-            max_val = scoresMat[i][len_seq_2];
+            max_col = len_seq_1;
+            max_val = scoresMat[i][len_seq_1];
         }
     }
 
-    for(int j = 1; j <= len_seq_2; j++) {
-        if (scoresMat[len_seq_1][j] > max_val) {
-            max_row = len_seq_1;
+    for(int j = 1; j <= len_seq_1; j++) {
+        if (scoresMat[len_seq_2][j] > max_val) {
+            max_row = len_seq_2;
             max_col = j;
-            max_val = scoresMat[len_seq_1][j];
+            max_val = scoresMat[len_seq_2][j];
         }
     }
 
-    
+    printf("Max row, col = (%d, %d)\n", max_row, max_col);
+
+
     // Finding the path
     char* seq_1_res = (char*)malloc(sizeof(char) * (len_seq_1 + len_seq_2));
     char* seq_2_res = (char*)malloc(sizeof(char) * (len_seq_1 + len_seq_2));
-    int idx_row = max_row;
-    int idx_col = max_col;
+    int idx_row = len_seq_2;
+    int idx_col = len_seq_1;
     int idx_1_res = 0;
     int idx_2_res = 0;
     int idx_1_seq = len_seq_1 - 1;
@@ -197,61 +189,56 @@ void NW_Align(void** seq_1, char* chr_seq_1, int len_seq_1,
         seq_2_res[i] = '\0';
     }
 
-    if (max_col == len_seq_2) {     // The 2nd seq 'begins backwards' (ends) with gaps
-        for (int i = 0; i < len_seq_1 - max_row; i++) {
-            seq_1_res[i] = chr_seq_1[idx_1_seq];
-            seq_2_res[i] = '-';
-            idx_1_seq--;
-        }
-        idx_1_res = len_seq_1 - max_row;
-        idx_2_res = len_seq_1 - max_row;
+    if (max_col == len_seq_1) {     // The 2nd seq 'begins backwards' (ends) with gaps
+        dirMat[len_seq_2][len_seq_1] = max_row - len_seq_2;
     }
 
-    if (max_row == len_seq_1) {     // The 1st seq 'begins backwards' (ends) with gaps
-        for (int i = 0; i < len_seq_2 - max_col; i++) {
-            seq_1_res[i] = '-';
-            seq_2_res[i] = chr_seq_2[idx_2_seq];
-            idx_2_seq--;
-        }
-        idx_1_res = len_seq_2 - max_col;
-        idx_2_res = len_seq_2 - max_col;
+    if (max_row == len_seq_2) {     // The 1st seq 'begins backwards' (ends) with gaps
+        dirMat[len_seq_2][len_seq_1] = len_seq_1 - max_col;
     }
 
     while (idx_row != 0 || idx_col != 0) {
-        switch (dirMat[idx_row][idx_col])
-        {
-            case 'd':   // Both steps
-                seq_1_res[idx_1_res] = chr_seq_1[idx_1_seq];
-                seq_2_res[idx_2_res] = chr_seq_2[idx_2_seq];
-                idx_1_res++;
-                idx_2_res++;
-                idx_1_seq--;
-                idx_2_seq--;
-                idx_col--;
-                idx_row--;
-                break;
-            
-            case 'l':   // Only seq_2 steps
-                seq_1_res[idx_1_res] = '-';
-                seq_2_res[idx_2_res] = chr_seq_2[idx_2_seq];
-                idx_1_res++;
-                idx_2_res++;
-                idx_2_seq--;
-                idx_col--;
-                break;
+        int dirMatVal = dirMat[idx_row][idx_col];
+        printf("Now at (%d, %d), dirMat Value = %d.\n", idx_row, idx_col, dirMatVal);
+        printf("%s\n", seq_1_res);
+        printf("%s\n\n", seq_2_res);
 
-             case 't':  // Only seq_1 steps
+        if (dirMatVal == 0) {        // 0 means diagonal, both idx_row and idx_col step by 1
+            seq_1_res[idx_1_res] = chr_seq_1[idx_1_seq];
+            seq_2_res[idx_2_res] = chr_seq_2[idx_2_seq];
+            idx_1_res++;
+            idx_2_res++;
+            idx_1_seq--;
+            idx_2_seq--;
+            idx_col--;
+            idx_row--;
+            continue;
+        }
+
+        if (dirMatVal > 0) {         // Greater than 0 means coming from the **LEFT**, only seq_2 steps;
+            for (int i = 0; i < dirMatVal; i++) {
                 seq_1_res[idx_1_res] = chr_seq_1[idx_1_seq];
                 seq_2_res[idx_2_res] = '-';
                 idx_1_res++;
                 idx_2_res++;
                 idx_1_seq--;
-                idx_row--;
-                break;
-        
-            default:
-                break;
+                idx_col--;
+            }
+            continue;
         }
+
+        if (dirMatVal < 0) {         // Less than 0 means coming from the **TOP**, only seq_1 steps;
+            for (int i = 0; i < -dirMatVal; i++) {
+                seq_1_res[idx_1_res] = '-';
+                seq_2_res[idx_2_res] = chr_seq_2[idx_2_seq];
+                idx_1_res++;
+                idx_2_res++;
+                idx_2_seq--;
+                idx_row--;
+            }
+            continue;
+        }
+
     }
 
     ReverseString(seq_1_res);
