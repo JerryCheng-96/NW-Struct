@@ -4,6 +4,7 @@
 #include <malloc.h>
 #include <math.h>
 
+#include "Univ_NW_Helpers.hpp"
 #include "Univ_NW.hpp"
 #include "Struct_Comp.hpp"
 
