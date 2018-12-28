@@ -3,6 +3,7 @@ using namespace std;
 /*
  *  Struct Definitions
  */
+
 typedef struct vector {
     double x;
     double y;
@@ -17,6 +18,7 @@ typedef struct amino_acid {
 /*
  *  Function declarations
  */
+
 extern "C" {
     double Vtr_length(Vtr* vtr);
     double Vtr_angle_cosine(Vtr* vtr_1, Vtr* vtr_2);
@@ -40,8 +42,8 @@ double Sim_amino_vtrCos(void* elem_1, void* elem_2) {
     Amino* amino_2 = (Amino*) elem_2;
 
     // If the Sec Struct is different, assign a very negative similarity value
-    //if (amino_1->ss == amino_2->ss)
-    //    return 1e2;
+//    if (amino_1->ss == amino_2->ss)
+//        return 1e2;
 
     // Calculating the cosine value of the angle
     return acos(Vtr_angle_cosine(amino_1->vector, amino_2->vector)) * (180 / acos(-1.0));
