@@ -68,7 +68,7 @@ if __name__ == "__main__":
 
     libstruct.Blosum_NW_Relay.restype = c_char_p
     tracePath = libstruct.Blosum_NW_Relay(seq_1, len(seq_1), seq_2, len(seq_2), blosum_sim_func, 11, 1)
-    print(tracePath.decode('ascii'))
     res_1, res_2 = TracePath2Align(tracePath.decode('ascii'), seq_1.decode('ascii'), seq_2.decode('ascii'))
     print(res_1)
+    print(tracePath.decode('ascii')[::-1])
     print(res_2)

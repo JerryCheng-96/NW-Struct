@@ -2,8 +2,11 @@ using namespace std;
 
 extern "C" {
     int arg_max(float* theArray, float* pMaxValue, int len);
-    char* NW_Align(void** seq_1, char* chr_seq_1, int len_seq_1, void** seq_2, char* chr_seq_2, int len_seq_2, float (*sim_func)(void*, void*), int gap_start, int gap_ext);
     void ReverseString(char * theString);
+    char* NW_Align(void** seq_1, int len_seq_1,
+                   void** seq_2, int len_seq_2,
+                   float (*sim_func)(void*, void*),
+                   int gap_start, int gap_ext);
 }
 
 
@@ -22,8 +25,8 @@ int arg_max(float* theArray, float* pMaxValue, int len) {
     return maxIndex;
 }
 
-void ReverseString(char * theString)
-{
+
+void ReverseString(char * theString) {
 	char temp = '\0';
 	int length = strlen(theString);
 
@@ -35,13 +38,11 @@ void ReverseString(char * theString)
 	}
 }
 
-char* NW_Align(void** seq_1, char* chr_seq_1, int len_seq_1,
-              void** seq_2, char* chr_seq_2, int len_seq_2, 
-              float (*sim_func)(void*, void*), 
-              int gap_start, int gap_ext) {
-    // Printing parameters
-    //printf("%s\n%s\n%d\t%d\n%d\t%d\n", chr_seq_1, chr_seq_2, len_seq_1, len_seq_2, gap_start, gap_ext);
 
+char* NW_Align(void** seq_1, int len_seq_1,
+               void** seq_2, int len_seq_2,
+               float (*sim_func)(void*, void*),
+               int gap_start, int gap_ext) {
 
     // Initializing the matrices
     // The rows / first layer pointers
@@ -51,7 +52,6 @@ char* NW_Align(void** seq_1, char* chr_seq_1, int len_seq_1,
     // The cols
     scoresMat[0] = (float*)malloc((len_seq_1 + 2) * (len_seq_2 + 2) * sizeof(float));
     dirMat[0] = (int*)malloc((len_seq_1 + 2) * (len_seq_2 + 2) * sizeof(int));
-    //printf("Size of the matrices: %d\n", (len_seq_1 + 2) * (len_seq_2 + 2));
     for (int row = 1; row < len_seq_2 + 2; row++) {
         scoresMat[row] = scoresMat[0] + row * (len_seq_1 + 2);
         dirMat[row] = dirMat[0] + row * (len_seq_1 + 2);
@@ -82,20 +82,14 @@ char* NW_Align(void** seq_1, char* chr_seq_1, int len_seq_1,
         dirMat[i][0] = 1;
     }
 
+
+    // Calculating scoresMat and dirMat
+
     float scoreValues[] = {0, 0, 0};
     int dirValues[] = {1, -1, 0};
 
-
-    int dbg_i = 0;
-    int dbg_j = 0;
-
-
-
     for(int i = 1; i <= len_seq_2; i++) {
         for(int j = 1; j <= len_seq_1; j++) {
-
-            if (i == dbg_i && j == dbg_j)
-                printf("Now at (%d, %d). \n", i, j);
 
             // Considering "local" (2x2) elements
             scoreValues[1] = scoresMat[i][j - 1] - gap_start;
@@ -104,31 +98,18 @@ char* NW_Align(void** seq_1, char* chr_seq_1, int len_seq_1,
             scoreValues[0] = scoresMat[i - 1][j] - gap_start;
             dirValues[0] = 1;
 
-
             // Considering "distance" (row/col) elements
             // A distant, previous **ROW** elem "travels" here?
             for (int k = 0; k < j; k++) {
-                if (i == dbg_i && j == dbg_j) {
-                    printf("\tscoreValues: L=%f, D=%f, T=%f.", scoreValues[0], scoreValues[1], scoreValues[2]);
-                    printf("\tdirValues: L=%d, D=%d, T=%d.", dirValues[0], dirValues[1], dirValues[2]);
-                    printf("\t(i, k) = (%d, %d).\n", i, k);
-                }
                 float theScore = scoresMat[i][k] - (j-k-1) * gap_ext - gap_start;
                 if (theScore > scoreValues[1]) {
                     dirValues[1] = k - j;
                     scoreValues[1] = theScore;
-//                    printf("\t(i, k) = (%d, %d); theScore = %f; dirValues[0] = %d - %d = %d = %d.\n", i, k, theScore, k, j, k - j, dirValues[0]);
                 }
             }
 
-
             // A distant, previous **COL** elem "travels" here?
             for (int k = 0; k < i; k++) {
-                if (i == dbg_i && j == dbg_j) {
-                    printf("\t\tscoreValues: L=%f, D=%f, T=%f.", scoreValues[0], scoreValues[1], scoreValues[2]);
-                    printf("\t\tdirValues: L=%d, D=%d, T=%d.", dirValues[0], dirValues[1], dirValues[2]);
-                    printf("\t\t(k, j) = (%d, %d).\n", k, j);
-                }
                 float theScore = scoresMat[k][j] - (i-k-1) * gap_ext - gap_start;
                 if (theScore > scoreValues[0]) {
                     dirValues[0] = i - k;
@@ -140,11 +121,6 @@ char* NW_Align(void** seq_1, char* chr_seq_1, int len_seq_1,
             dirMat[i][j] = dirValues[arg_max(scoreValues, &scoresMat[i][j], 3)];
         }
     }
-
-
-    print_matrix(scoresMat, chr_seq_1, chr_seq_2, len_seq_1, len_seq_2);
-    print_int_matrix(dirMat, chr_seq_1, chr_seq_2, len_seq_1, len_seq_2);
-
 
 
     // Finding start point
@@ -169,23 +145,15 @@ char* NW_Align(void** seq_1, char* chr_seq_1, int len_seq_1,
         }
     }
 
-    printf("Max row, col = (%d, %d)\n", max_row, max_col);
-//    return;
-
 
     // Finding the path
-//    int idx_row = max_row;
-//    int idx_col = max_col;
-
     int idx_row = len_seq_2;
     int idx_col = len_seq_1;
 
-//    char tracePath[len_seq_1 + len_seq_2 + 1] = {'\0'};
     char* tracePath = (char*)memset(malloc((len_seq_1 + len_seq_2 + 1) * sizeof(char)), 0, (len_seq_1 + len_seq_2 + 1) * sizeof(char));
     int tracePathIdx = 0;
     while (idx_row != 0 || idx_col != 0) {
         int dirMatVal = dirMat[idx_row][idx_col];
-        //printf("Now at (%d, %d), dirMatVal = %d.\n", idx_row, idx_col, dirMatVal);
 
         if (dirMatVal > 0) {        // Greater than 0 means coming from the **TOP**
             idx_row -= dirMatVal;
@@ -204,9 +172,6 @@ char* NW_Align(void** seq_1, char* chr_seq_1, int len_seq_1,
             //tracePath[tracePathIdx++] = 'A' - dirMatVal;
             for (int i = 0; i < -dirMatVal; i++) tracePath[tracePathIdx++] = '-';
         }
-        //printf("%s\n", tracePath);
     }
-
-    //printf("Printing in C module:\n%s\n", tracePath);
     return tracePath;
 }
