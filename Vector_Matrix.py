@@ -63,6 +63,7 @@ def SolveFor_rot(from_vtr, to_vtr):
 
     return (axis, math.acos(cos_angle))
 
+
 def Kabsch(from_points, to_points):
     ## Checking input...
     assert len(from_points) == len(to_points)
@@ -86,7 +87,35 @@ def Kabsch(from_points, to_points):
                                          [0, 0, val_d]]))
     mat_rot = np.dot(mat_rot, mat_U.T)
 
-    return mat_rot
+    return mat_rot, centroid_to - centroid_from
+
+
+def Kabsch_CenterRot(from_points, to_points):
+    ## Checking input...
+    assert len(from_points) == len(to_points)
+
+    ## Centering the points sets
+    centroid_from = np.sum(from_points, axis=0) / len(from_points)
+    centroid_to = np.sum(to_points, axis=0) / len(to_points)
+    from_points = from_points.astype(dtype=np.float64) - centroid_from
+    to_points = to_points.astype(dtype=np.float64) - centroid_to
+
+    ## Cross variance matrix cv_mat
+    cv_mat = np.dot(from_points.T,  to_points)
+
+    ## SVD
+    mat_U, mat_S, mat_VT = np.linalg.svd(cv_mat)
+
+    ## Solving for final rotation matrix mat_rot
+    val_d = np.linalg.det(np.dot(mat_VT.T, mat_U.T))
+    mat_rot = np.dot(mat_VT.T, np.array([[1, 0, 0],
+                                         [0, 1, 0],
+                                         [0, 0, val_d]]))
+    mat_rot = np.dot(mat_rot, mat_U.T)
+
+    return mat_rot, centroid_to - np.dot(mat_rot, np.array([centroid_from]).T).T[0], \
+           np.array([np.dot(mat_rot, np.array([p]).T).T[0] for p in from_points]), to_points
+
 
 
 def Get_RotMatrix(roll=None, pitch=None, yaw=None):

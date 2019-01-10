@@ -3,31 +3,27 @@ from Vector_Matrix import *
 from Bio.PDB.DSSP import DSSP
 from Bio.PDB.PDBParser import PDBParser
 
-def Get_AnimoNVtr(resis, window = 1):
-    listNVtr = [np.array(list(resis[1]["N"].get_vector() - resis[0]["N"].get_vector()))]
 
-    for i in range(1, len(resis) - 1):
-        vtr_NC = list(resis[i]["N"].get_vector() - resis[i-1]["C"].get_vector())
-        vtr_NCa = list(resis[i]["N"].get_vector() - resis[i]["CA"].get_vector())
-        norm_vtr = np.cross(vtr_NC, vtr_NCa)
-        norm_vtr = norm_vtr / Len_Vtr(norm_vtr)
-        axis, angle = SolveFor_rot(norm_vtr, np.array([0,0,1]))
-        oriNVtr = resis[i]["N"].get_vector() - resis[i+1]["N"].get_vector()
-        listNVtr.append(Rodrigues_rot(np.array(list(oriNVtr)), axis, angle))
-    
-    listNVtr.append(np.array([0,0,0]))
-    return listNVtr
+def Get_PDBStruct(filename):
+    pp = PDBParser(PERMISSIVE=1)
+    try:
+        id = re.findall(r"([^/]+?)\.pdb$", filename)[0]
+    except IndexError as ie:
+        print("The input file should be a .pdb.")
+        raise(ie)
+
+    return pp.get_structure(id, filename)[0], filename
 
 
 def Get_DSSP(filename, struct_no=0):
     pp = PDBParser(PERMISSIVE=1)
     try:
-        pdb_id = re.findall(r"([^/]+?)\.pdb$", filename)[0]
+        id = re.findall(r"([^/]+?)\.pdb$", filename)[0]
     except IndexError as ie:
         print("The input file should be a .pdb.")
-        raise(ie)
+        raise (ie)
 
-    struct = pp.get_structure(pdb_id, filename)
+    struct = pp.get_structure(id, filename)[0], filename
 
     try:
         model = struct[struct_no]
@@ -39,16 +35,23 @@ def Get_DSSP(filename, struct_no=0):
     return [dssp[i] for i in list(dssp.keys())]
 
 
-def Get_AminoResidues(filename, struct_no=0, chain_id="A"):
-    pp = PDBParser(PERMISSIVE=1)
-    try:
-        id = re.findall(r"([^/]+?)\.pdb$", filename)[0]
-    except IndexError as ie:
-        print("The input file should be a .pdb.")
-        raise(ie)
+def Get_AnimoNVtr(resis, window = 1):
+    listNVtr = [np.array(list(resis[1]["N"].get_vector() - resis[0]["N"].get_vector()))]
 
-    struct = pp.get_structure(id, filename)
+    for i in range(1, len(resis) - 1):
+        vtr_NC = list(resis[i]["N"].get_vector() - resis[i-1]["C"].get_vector())
+        vtr_NCa = list(resis[i]["N"].get_vector() - resis[i]["CA"].get_vector())
+        norm_vtr = np.cross(vtr_NC, vtr_NCa)
+        norm_vtr = norm_vtr / Len_Vtr(norm_vtr)
+        axis, angle = SolveFor_rot(norm_vtr, np.array([0,0,1]))
+        oriNVtr = resis[i]["N"].get_vector() - resis[i+1]["N"].get_vector()
+        listNVtr.append(Rodrigues_rot(np.array(list(oriNVtr)), axis, angle))
 
+    listNVtr.append(np.array([0,0,0]))
+    return listNVtr
+
+
+def Get_AminoResidues(struct, struct_no=0, chain_id="A"):
     model = struct[struct_no]
     chain = model[chain_id]
 

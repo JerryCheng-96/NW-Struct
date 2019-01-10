@@ -3,5 +3,4 @@
 *.pdf
 */cmake-build-debug/
 __pycache__/
-.idea/
-pdbs/
+*/.idea/

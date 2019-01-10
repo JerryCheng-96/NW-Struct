@@ -7,6 +7,7 @@
 #include "Univ_NW_Debug.hpp"
 #include "Univ_NW.hpp"
 #include "Blosum_Helper.hpp"
+#include "VtrMat.hpp"
 #include "Struct_Comp.hpp"
 
 using namespace std;
