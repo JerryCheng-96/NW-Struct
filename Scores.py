@@ -2,12 +2,13 @@ from Vector_Matrix import *
 from Bio.PDB.DSSP import DSSP
 from Bio.PDB.PDBParser import PDBParser
 
+# TODO:Change the Function for new .PDB file data structures.
 
 def TMscoreAligned(resis_mod_aligned, resis_nat_aligned, len_nat):
     # First, get the N-CA-C chain atoms vector list
-    listCAVtr_mod = np.array([[list(r["N"].get_vector()), list(r["CA"].get_vector()), list(r["C"].get_vector())]
+    listCAVtr_mod = np.array([[r.atoms["N"].vector, r.atoms["CA"].vector, r.atoms["C"].vector]
                               for r in resis_mod_aligned])
-    listCAVtr_nat = np.array([[list(r["N"].get_vector()), list(r["CA"].get_vector()), list(r["C"].get_vector())]
+    listCAVtr_nat = np.array([[r.atoms["N"].vector, r.atoms["CA"].vector, r.atoms["C"].vector]
                               for r in resis_nat_aligned])
     listCAVtr_mod = np.array(list(listCAVtr_mod[:,0]) + list(listCAVtr_mod[:,1]) + list(listCAVtr_mod[:,2]))
     listCAVtr_nat = np.array(list(listCAVtr_nat[:,0]) + list(listCAVtr_nat[:,1]) + list(listCAVtr_nat[:,2]))

@@ -38,12 +38,28 @@ class CAmino(Structure):
 
 
 # Python helper functions
-def PDB2CAminoPtrArray(nVtrList, dsspList):
-    assert (nVtrList is not None and dsspList is not None)
-    assert len(nVtrList) == len(dsspList)
+##def PDB2CAminoPtrArray(nVtrList, dsspList):
+##    assert (nVtrList is not None and dsspList is not None)
+##    assert len(nVtrList) == len(dsspList)
+##    seq_len = len(nVtrList)
+##    #nVtrList = pdbPar.Get_AnimoNVtr(pdbPar.Get_AminoResidues(struct))
+##    #dsspList = pdbPar.Get_DSSP(struct, filename)
+##
+##    pAminoArray = (POINTER(CAmino) * seq_len)()
+##    pAminoArray = cast(pAminoArray, POINTER(POINTER(CAmino)))
+##
+##    aminos_seq = ''
+##
+##    for i in range(0, seq_len):
+##        pAminoArray[i] = pointer(CAmino(pointer(Np2CVtr(nVtrList[i])), ord(dsspList[i][2])))
+##        aminos_seq += dsspList[i][1]
+##
+##    return pAminoArray, bytes(aminos_seq, encoding="ASCII"), seq_len
+
+
+def PDB2CAminoPtrArray(nVtrList):
+    assert (nVtrList is not None)
     seq_len = len(nVtrList)
-    #nVtrList = pdbPar.Get_AnimoNVtr(pdbPar.Get_AminoResidues(struct))
-    #dsspList = pdbPar.Get_DSSP(struct, filename)
 
     pAminoArray = (POINTER(CAmino) * seq_len)()
     pAminoArray = cast(pAminoArray, POINTER(POINTER(CAmino)))
@@ -51,10 +67,11 @@ def PDB2CAminoPtrArray(nVtrList, dsspList):
     aminos_seq = ''
 
     for i in range(0, seq_len):
-        pAminoArray[i] = pointer(CAmino(pointer(Np2CVtr(nVtrList[i])), ord(dsspList[i][2])))
-        aminos_seq += dsspList[i][1]
+        pAminoArray[i] = pointer(CAmino(pointer(Np2CVtr(nVtrList[i])), ord('-')))
+        aminos_seq += 'A'
 
     return pAminoArray, bytes(aminos_seq, encoding="ASCII"), seq_len
+
 
 
 # *****************
