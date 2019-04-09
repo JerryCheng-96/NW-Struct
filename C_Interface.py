@@ -167,7 +167,7 @@ class NW:
 def SimAminoCosine(ptr_1, ptr_2):
     ptr_1 = cast(ptr_1, POINTER(CAmino))
     ptr_2 = cast(ptr_2, POINTER(CAmino))
-    return 10 * CVtrAngleCosine(ptr_1.contents.vector, ptr_2.contents.vector)
+    return 100 * CVtrAngleCosine(ptr_1.contents.vector, ptr_2.contents.vector)
 
 SIM_FUNC = CFUNCTYPE(c_float, c_void_p, c_void_p)
 cos_simFunc = SIM_FUNC(SimAminoCosine)

@@ -3,6 +3,7 @@ import numpy as np
 
 # The "infinitesimal"
 epsilon = 1e-9
+infinite = 1e9
 
 
 def Len_Vtr(vtr):
@@ -145,3 +146,79 @@ def Get_RotMatrix(roll=None, pitch=None, yaw=None):
     rot_allmat = np.dot(np.dot(rot_zmat, rot_ymat), rot_xmat)
 
     return rot_allmat
+
+
+#def Calc_SimVectorSet(vtrSet1, vtrSet2):
+#    if len(vtrSet1) > len(vtrSet2):
+#        vSet1 = vtrSet2
+#        vSet2 = vtrSet1
+#    else:
+#        vSet1 = vtrSet1
+#        vSet2 = vtrSet2
+#
+#    scoreMap = np.zeros((len(vSet1), len(vSet2)))
+#    scoreSum = 0
+#    for i in range(0, len(vSet1)):
+#        for j in range(0, len(vSet2)):
+#            scoreMap[i][j] = np.dot(vSet1[i], vSet2[j]) / np.power(np.max([Len_Vtr(vSet1[i]), Len_Vtr(vSet2[j])]), 2)
+#    for i in range(0, len(vSet1)):
+#        scoreSum += np.max(scoreMap)
+#        maxRowNo = int(np.argmax(scoreMap) / scoreMap.shape[1])
+#        maxColNo = int(np.argmax(scoreMap) % scoreMap.shape[1])
+#        scoreMap[maxRowNo] = np.repeat(-infinite, scoreMap.shape[1])
+#        scoreMap[:,maxColNo] = np.repeat(-infinite, scoreMap.shape[0])
+#
+#    return scoreSum / len(vSet1)
+
+
+#def Calc_SimVectorSet(vtrSet1, vtrSet2):
+#    if len(vtrSet1) > len(vtrSet2):
+#        vSet1 = vtrSet2
+#        vSet2 = vtrSet1
+#    else:
+#        vSet1 = vtrSet1
+#        vSet2 = vtrSet2
+#
+#    scoreMap = np.zeros((len(vSet1), len(vSet2)))
+#    scoreSum = 0
+#    for i in range(0, len(vSet1)):
+#        for j in range(0, len(vSet2)):
+#            scoreMap[i][j] = np.dot(vSet1[i], vSet2[j]) / ([Len_Vtr(vSet1[i]) * Len_Vtr(vSet2[j])])
+#    for i in range(0, len(vSet1)):
+#        scoreSum += np.max(scoreMap)
+#        maxRowNo = int(np.argmax(scoreMap) / scoreMap.shape[1])
+#        maxColNo = int(np.argmax(scoreMap) % scoreMap.shape[1])
+#        scoreMap[maxRowNo] = np.repeat(-infinite, scoreMap.shape[1])
+#        scoreMap[:,maxColNo] = np.repeat(-infinite, scoreMap.shape[0])
+#
+#    return scoreSum / len(vSet1)
+
+
+#def Calc_SimVectorSet(vtrSet1, vtrSet2):
+#    if len(vtrSet1) > len(vtrSet2):
+#        vSet1 = vtrSet2
+#        vSet2 = vtrSet1
+#    else:
+#        vSet1 = vtrSet1
+#        vSet2 = vtrSet2
+#
+#    scoreSum = 0
+#    for i in range(0, len(vSet1)):
+#        scoreSum += np.dot(vSet1[i], vSet2[i]) / ([Len_Vtr(vSet1[i]) * Len_Vtr(vSet2[i])])
+#
+#    return scoreSum / len(vSet1)
+
+
+def Calc_SimVectorSet(vtrSet1, vtrSet2):
+    if len(vtrSet1) > len(vtrSet2):
+        vSet1 = vtrSet2
+        vSet2 = vtrSet1
+    else:
+        vSet1 = vtrSet1
+        vSet2 = vtrSet2
+
+    scoreSum = 0
+    for i in range(0, len(vSet1)):
+        scoreSum += np.dot(vSet1[i], vSet2[i]) / np.power(np.max([Len_Vtr(vSet1[i]), Len_Vtr(vSet2[i])]), 2)
+
+    return scoreSum / len(vSet1)
