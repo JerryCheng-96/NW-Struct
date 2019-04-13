@@ -1,4 +1,5 @@
 from Vector_Matrix import *
+import matplotlib.pyplot as plt
 
 
 class Atom:
@@ -26,8 +27,9 @@ class Atom:
 
 
 class Residue:
-    def __init__(self, atomDict):
+    def __init__(self, atomDict, aminoName):
         self.atoms = atomDict
+        self.aminoAcid = aminoName
 
 
 class Chain:
@@ -51,6 +53,8 @@ class Chain:
 
     # TODO: Implement the window function
     def Get_AminoNVtr(self, window = 1):
+        assert window % 2 == 1
+        offset = window
         listNVtr = [self.residues[1].atoms['N'].vector - self.residues[0].atoms['N'].vector]
 
         for i in range(1, len(self.residues) - 1):
@@ -89,9 +93,9 @@ class Chain:
                 theVtr = self.residues[i].atoms['CA'].vector - self.residues[j].atoms['CA'].vector
                 theVtrLen = Len_Vtr(theVtr)
                 if low_cutoff < theVtrLen < high_cutoff:
-                    residueLenAminos[Len_Vtr(theVtr)] = theVtr
+                    residueLenAminos[Len_Vtr(theVtr)] = (theVtr, j)
 
-            residueSurroundVtr = [Rodrigues_rot(residueLenAminos[aaLen], axis, angle)\
+            residueSurroundVtr = [(Rodrigues_rot(residueLenAminos[aaLen][0], axis, angle), residueLenAminos[aaLen][1], Len_Vtr(residueLenAminos[aaLen][0]))
                                   for aaLen in sorted(residueLenAminos.keys())][:keep]
             neighborAminos.append(residueSurroundVtr)
 
@@ -169,7 +173,7 @@ def GetChain(pdbAtomsList, chainId):
         try:
             pdbAminoDict[int(atom[5])].atoms[atom[2]] = Atom(atom)
         except KeyError:
-            pdbAminoDict[int(atom[5])] = Residue({})
+            pdbAminoDict[int(atom[5])] = Residue({}, atom[3])
             pdbAminoDict[int(atom[5])].atoms[atom[2]] = Atom(atom)
 #    for i in range(1, 395):
 #        try:
@@ -180,15 +184,48 @@ def GetChain(pdbAtomsList, chainId):
     return Chain([pdbAminoDict[aminoNo] for aminoNo in sorted(pdbAminoDict.keys())])
 
 
+def Dbg_GetVtrLen(chain, aaNo1, aaNo2):
+    theVtr = chain.CAAtomsList[aaNo1].vector - chain.CAAtomsList[aaNo2].vector
+    return theVtr, Len_Vtr(theVtr)
+
+
 if __name__ == "__main__":
-    pdbAtomsList = ReadPDBAsAtomsList("pdbs/Legacy/4xt3.pdb")
-    chainA = GetChain(pdbAtomsList, 'A')
-    chainA.Get_AminoNVtr()
+    pdbAtomsList1 = ReadPDBAsAtomsList("pdbs/Legacy/101M.pdb")
+    pdbAtomsList2 = ReadPDBAsAtomsList("pdbs/Legacy/1MBA.pdb")
+    chain1 = GetChain(pdbAtomsList1, 'A')
+    chain2 = GetChain(pdbAtomsList2, 'A')
     ##cm = chainA.Get_CAContactMap()
     ##nv = Get_NeighborAminoNo(cm, 4.0, 12.0)
-    neiVtr = chainA.Get_SurroundVectorSet(3.8, 12, 10)
+    neiVtr1 = chain1.Get_SurroundVectorSet(4, 12, 1000)
+    neiVtr2 = chain2.Get_SurroundVectorSet(4, 12, 1000)
+    #cm1 = chain1.Get_CAContactMap()
+    #nv1 = Get_NeighborAminoNo(cm1, 4.0, 12.0)
+    #cm2 = chain2.Get_CAContactMap()
+    #nv2 = Get_NeighborAminoNo(cm2, 4.0, 12.0)
     simValArray = []
-    for i in range(90, 110):
-        simValArray.append(Calc_SimVectorSet(neiVtr[100], neiVtr[i]))
-    SavePDBFile("pdbs/4xt3_new.pdb", [chainA])
+    for i in range(0, len(chain2)):
+        print(str(i) + '\t\t' + str(Calc_SimVectorSet(neiVtr1[98], neiVtr2[i])))
+        simValArray.append(Calc_SimVectorSet(neiVtr1[98], neiVtr2[i]))
+    x = np.arange(0, len(chain2))
+    plt.scatter(x, simValArray)
+
+    #neiVtr1 = chain1.Get_SurroundVectorSet(12, 20, 1000)
+    #neiVtr2 = chain2.Get_SurroundVectorSet(12, 20, 1000)
+    #simValArray = []
+    #for i in range(0, len(chain2)):
+    #    #print(str(i) + '\t\t' + str(Calc_SimVectorSet(neiVtr1[100], neiVtr2[i])))
+    #    simValArray.append(Calc_SimVectorSet(neiVtr1[80], neiVtr2[i]))
+    #    print(i)
+    #plt.scatter(x, simValArray)
+
+    #neiVtr1 = chain1.Get_SurroundVectorSet(0, 100, 1000)
+    #neiVtr2 = chain2.Get_SurroundVectorSet(0, 100, 1000)
+    #simValArray = []
+    #for i in range(0, len(chain2)):
+    #    #print(str(i) + '\t\t' + str(Calc_SimVectorSet(neiVtr1[100], neiVtr2[i])))
+    #    simValArray.append(Calc_SimVectorSet(neiVtr1[20], neiVtr2[i]))
+    #plt.plot(x, simValArray)
+
+    plt.show()
+#    SavePDBFile("pdbs/4xt3_new.pdb", [chainA])
     print()
