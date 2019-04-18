@@ -88,8 +88,16 @@ char* NW_Align(void** seq_1, int len_seq_1,
     float scoreValues[] = {0, 0, 0};
     int dirValues[] = {1, -1, 0};
 
+    // DEBUGGING
+    printf("Length of sequences: %d, %d\n", len_seq_1, len_seq_2);
+    // END OF DEBUGGING
+
     for(int i = 1; i <= len_seq_2; i++) {
         for(int j = 1; j <= len_seq_1; j++) {
+
+            //DEBUGGING
+            //printf("SeqLen (%d, %d)\n", len_seq_1, len_seq_2)
+            //printf("Now at (%d, %d)\n", i - 1, j - 1);
 
             // Considering "local" (2x2) elements
             scoreValues[1] = scoresMat[i][j - 1] - gap_start;

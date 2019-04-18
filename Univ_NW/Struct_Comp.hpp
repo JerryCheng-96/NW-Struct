@@ -10,6 +10,11 @@ typedef struct amino_acid {
 } Amino;
 
 
+typedef struct pyAminoAcid {
+    int num;
+} PyAmino;
+
+
 /*
  *  Function declarations
  */

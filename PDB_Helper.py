@@ -1,5 +1,6 @@
 from Vector_Matrix import *
 import matplotlib.pyplot as plt
+import math
 
 
 class Atom:
@@ -77,25 +78,50 @@ class Chain:
         return contactMap + contactMap.T
 
 
-    def Get_SurroundVectorSet(self, low_cutoff, high_cutoff, keep=10):
+    #def Get_SurroundVectorSet(self, low_cutoff, high_cutoff, keep=10):
+    #    neighborAminos = []
+
+    #    for i in range(0, len(self)):
+    #        residueLenAminos = {}
+
+    #        vtr_CaN = self.residues[i].atoms['CA'].vector - self.residues[i].atoms['N'].vector
+    #        vtr_CaC = self.residues[i].atoms['CA'].vector - self.residues[i].atoms['C'].vector
+    #        norm_vtr = np.cross(vtr_CaN, vtr_CaC)
+    #        norm_vtr = norm_vtr / Len_Vtr(norm_vtr)
+    #        axis, angle = SolveFor_rot(norm_vtr, np.array([0,0,1]))
+
+    #        for j in range(0, len(self)):
+    #            theVtr = self.residues[i].atoms['CA'].vector - self.residues[j].atoms['CA'].vector
+    #            theVtrLen = Len_Vtr(theVtr)
+    #            if low_cutoff < theVtrLen < high_cutoff:
+    #                residueLenAminos[Len_Vtr(theVtr)] = (theVtr, j)
+
+    #        residueSurroundVtr = [(Rodrigues_rot(residueLenAminos[aaLen][0], axis, angle), residueLenAminos[aaLen][1], Len_Vtr(residueLenAminos[aaLen][0]))
+    #                              for aaLen in sorted(residueLenAminos.keys())][:keep]
+    #        neighborAminos.append(residueSurroundVtr)
+
+    #    return neighborAminos
+
+
+    def Get_SurroundVectorSet(self, low_cutoff, high_cutoff, keep=1000):
         neighborAminos = []
 
         for i in range(0, len(self)):
             residueLenAminos = {}
 
-            vtr_CaN = self.residues[i].atoms['CA'].vector - self.residues[i - 1].atoms['N'].vector
+            vtr_CaN = self.residues[i].atoms['CA'].vector - self.residues[i].atoms['N'].vector
             vtr_CaC = self.residues[i].atoms['CA'].vector - self.residues[i].atoms['C'].vector
-            norm_vtr = np.cross(vtr_CaN, vtr_CaC)
-            norm_vtr = norm_vtr / Len_Vtr(norm_vtr)
-            axis, angle = SolveFor_rot(norm_vtr, np.array([0,0,1]))
 
             for j in range(0, len(self)):
-                theVtr = self.residues[i].atoms['CA'].vector - self.residues[j].atoms['CA'].vector
+                theVtr = self.residues[j].atoms['CA'].vector - self.residues[i].atoms['CA'].vector
                 theVtrLen = Len_Vtr(theVtr)
                 if low_cutoff < theVtrLen < high_cutoff:
-                    residueLenAminos[Len_Vtr(theVtr)] = (theVtr, j)
-
-            residueSurroundVtr = [(Rodrigues_rot(residueLenAminos[aaLen][0], axis, angle), residueLenAminos[aaLen][1], Len_Vtr(residueLenAminos[aaLen][0]))
+                    bondAngle = math.acos(np.dot(vtr_CaN, theVtr) / (Len_Vtr(vtr_CaN) * Len_Vtr(theVtr)))
+                    plnNorm1 = np.cross(vtr_CaN, theVtr)
+                    plnNorm2 = np.cross(vtr_CaN, vtr_CaC)
+                    torsionAngle = math.acos(np.dot(plnNorm1, plnNorm2) / (Len_Vtr(plnNorm1) * Len_Vtr(plnNorm2)))
+                    residueLenAminos[theVtrLen] = (theVtrLen, bondAngle, torsionAngle, self.residues[j])
+            residueSurroundVtr = [(residueLenAminos[aaLen])
                                   for aaLen in sorted(residueLenAminos.keys())][:keep]
             neighborAminos.append(residueSurroundVtr)
 
@@ -191,7 +217,7 @@ def Dbg_GetVtrLen(chain, aaNo1, aaNo2):
 
 if __name__ == "__main__":
     pdbAtomsList1 = ReadPDBAsAtomsList("pdbs/Legacy/101M.pdb")
-    pdbAtomsList2 = ReadPDBAsAtomsList("pdbs/Legacy/1MBA.pdb")
+    pdbAtomsList2 = ReadPDBAsAtomsList("pdbs/Legacy/1MBA_New.pdb")
     chain1 = GetChain(pdbAtomsList1, 'A')
     chain2 = GetChain(pdbAtomsList2, 'A')
     ##cm = chainA.Get_CAContactMap()
@@ -202,12 +228,17 @@ if __name__ == "__main__":
     #nv1 = Get_NeighborAminoNo(cm1, 4.0, 12.0)
     #cm2 = chain2.Get_CAContactMap()
     #nv2 = Get_NeighborAminoNo(cm2, 4.0, 12.0)
+
     simValArray = []
     for i in range(0, len(chain2)):
-        print(str(i) + '\t\t' + str(Calc_SimVectorSet(neiVtr1[98], neiVtr2[i])))
-        simValArray.append(Calc_SimVectorSet(neiVtr1[98], neiVtr2[i]))
+        print(str(i) + '\t\t' + str(Calc_SimVectorSet(neiVtr1[67], neiVtr2[i])))
+        simValArray.append(Calc_SimVectorSet(neiVtr1[67], neiVtr2[i]))
     x = np.arange(0, len(chain2))
     plt.scatter(x, simValArray)
+    plt.show()
+    plt.figure()
+    plt.hist(simValArray, bins=20)
+    plt.show()
 
     #neiVtr1 = chain1.Get_SurroundVectorSet(12, 20, 1000)
     #neiVtr2 = chain2.Get_SurroundVectorSet(12, 20, 1000)
@@ -226,6 +257,6 @@ if __name__ == "__main__":
     #    simValArray.append(Calc_SimVectorSet(neiVtr1[20], neiVtr2[i]))
     #plt.plot(x, simValArray)
 
-    plt.show()
-#    SavePDBFile("pdbs/4xt3_new.pdb", [chainA])
+    #SavePDBFile("pdbs/4xt3_new.pdb", [chainA])
+    Calc_SimVectorSet(neiVtr1[27], neiVtr2[27], True)
     print()

@@ -1,5 +1,10 @@
 import math
 import numpy as np
+from scipy.optimize import linear_sum_assignment
+# DEBUG
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+# END OF DEBUG
 
 # The "infinitesimal"
 epsilon = 1e-9
@@ -8,6 +13,10 @@ infinite = 1e9
 
 def Len_Vtr(vtr):
     return math.sqrt(sum([comp * comp for comp in list(vtr)]))
+
+
+def Calc_VtrCosine(vtr_1, vtr_2):
+    return np.dot(vtr_1, vtr_2) / (Len_Vtr(vtr_1) * Len_Vtr(vtr_2))
 
 
 def Calc_diheral(atoms_vtr):
@@ -209,16 +218,115 @@ def Get_RotMatrix(roll=None, pitch=None, yaw=None):
 #    return scoreSum / len(vSet1)
 
 
-def Calc_SimVectorSet(vtrSet1, vtrSet2):
-    if len(vtrSet1) > len(vtrSet2):
-        vSet1 = vtrSet2
-        vSet2 = vtrSet1
-    else:
-        vSet1 = vtrSet1
-        vSet2 = vtrSet2
+#def Calc_SimVectorSet(vtrSet1, vtrSet2):
+#    if len(vtrSet1) > len(vtrSet2):
+#        vSet1 = vtrSet2
+#        vSet2 = vtrSet1
+#    else:
+#        vSet1 = vtrSet1
+#        vSet2 = vtrSet2
+#
+#    scoreSum = 0
+#    for i in range(0, len(vSet1)):
+#        scoreSum += np.dot(vSet1[i], vSet2[i]) / np.power(np.max([Len_Vtr(vSet1[i]), Len_Vtr(vSet2[i])]), 2)
+#
+#    return scoreSum / len(vSet1)
 
-    scoreSum = 0
-    for i in range(0, len(vSet1)):
-        scoreSum += np.dot(vSet1[i], vSet2[i]) / np.power(np.max([Len_Vtr(vSet1[i]), Len_Vtr(vSet2[i])]), 2)
 
-    return scoreSum / len(vSet1)
+def SimFunc_TwoVtr(vtr1, vtr2):
+    return np.dot(vtr1[0], vtr2[0]) / np.power(max(Len_Vtr(vtr1[0]), Len_Vtr(vtr2[0])), 2)
+    #return np.dot(vtr1[0], vtr2[0]) / (Len_Vtr(vtr1[0]) * Len_Vtr(vtr2[0]))
+
+
+def SimFunc_InternalCoord(iCoord1, iCoord2):
+    itemLength = iCoord1[0] / iCoord2[0]
+    if itemLength > 1:
+        itemLength = 1 / itemLength
+
+    itemBond = math.cos(iCoord1[1] - iCoord2[1])
+    itemTor = math.cos(iCoord1[2] - iCoord2[2])
+
+    return (itemLength + itemBond + itemTor) / 3
+
+
+#def Calc_SimVectorSet(vtrSet1, vtrSet2, showOne2One = False):
+#    scoresMat = np.zeros((len(vtrSet1), len(vtrSet2)))
+#    for i in range(0, len(vtrSet1)):
+#        for j in range(0, len(vtrSet2)):
+#            scoresMat[i][j] = -SimFunc_TwoVtr(vtrSet1[i], vtrSet2[j])
+#
+#    row_idx, col_idx = linear_sum_assignment(scoresMat)
+#
+#    # DEBUG
+#    corrVtrSet1 = []
+#    corrVtrSet2 = []
+#    if showOne2One:
+#        fig = plt.figure()
+#        ax = Axes3D(fig)
+#        ax.mouse_init()
+#        for i in range(0, len(row_idx)):
+#            corrVtrSet1.append(vtrSet1[row_idx[i]][0])
+#            corrVtrSet2.append(vtrSet2[col_idx[i]][0])
+#            ax.plot([vtrSet1[row_idx[i]][0][0], vtrSet2[col_idx[i]][0][0]],
+#                    [vtrSet1[row_idx[i]][0][1], vtrSet2[col_idx[i]][0][1]],
+#                    [vtrSet1[row_idx[i]][0][2], vtrSet2[col_idx[i]][0][2]])
+#        corrVtrSet1 = np.array(corrVtrSet1)
+#        corrVtrSet2 = np.array(corrVtrSet2)
+#        ax.scatter(corrVtrSet1[:,0], corrVtrSet1[:,1], corrVtrSet1[:,2])
+#        ax.scatter(corrVtrSet2[:,0], corrVtrSet2[:,1], corrVtrSet2[:,2])
+#        plt.show()
+#    # END OF DEBUG
+#
+#
+#    return -sum([scoresMat[i][i] for i in range(0, len(row_idx))]) / len(row_idx)
+
+
+def Calc_SimVectorSet(vtrSet1, vtrSet2, showOne2One = False):
+    scoresMat = np.zeros((len(vtrSet1), len(vtrSet2)))
+    for i in range(0, len(vtrSet1)):
+        for j in range(0, len(vtrSet2)):
+            scoresMat[i][j] = -SimFunc_InternalCoord(vtrSet1[i], vtrSet2[j])
+
+    row_idx, col_idx = linear_sum_assignment(scoresMat)
+
+    # DEBUG
+    corrVtrSet1 = []
+    corrVtrSet2 = []
+    if showOne2One:
+        fig = plt.figure()
+        for i in range(0, len(row_idx)):
+            corrVtrSet1.append(vtrSet1[row_idx[i]][0:3])
+            corrVtrSet2.append(vtrSet2[col_idx[i]][0:3])
+            plt.plot([vtrSet1[row_idx[i]][1], vtrSet2[col_idx[i]][1]],
+                     [vtrSet1[row_idx[i]][2], vtrSet2[col_idx[i]][2]])
+        corrVtrSet1 = np.array(corrVtrSet1)
+        corrVtrSet2 = np.array(corrVtrSet2)
+        plt.scatter(corrVtrSet1[:,1], corrVtrSet1[:,2])
+        plt.scatter(corrVtrSet2[:,1], corrVtrSet2[:,2])
+        plt.show()
+    # END OF DEBUG
+
+    # DEBUG
+    corrVtrSet1 = []
+    corrVtrSet2 = []
+    if showOne2One:
+        fig = plt.figure()
+        ax = Axes3D(fig)
+        for i in range(0, len(row_idx)):
+            corrVtrSet1.append(vtrSet1[row_idx[i]][0:3])
+            corrVtrSet2.append(vtrSet2[col_idx[i]][0:3])
+            ax.plot([vtrSet1[row_idx[i]][1], vtrSet2[col_idx[i]][1]],
+                    [vtrSet1[row_idx[i]][2], vtrSet2[col_idx[i]][2]],
+                    [vtrSet1[row_idx[i]][0], vtrSet2[col_idx[i]][0]])
+        corrVtrSet1 = np.array(corrVtrSet1)
+        corrVtrSet2 = np.array(corrVtrSet2)
+        ax.scatter(corrVtrSet1[:,1], corrVtrSet1[:,2], corrVtrSet1[:,0])
+        ax.scatter(corrVtrSet2[:,1], corrVtrSet2[:,2], corrVtrSet2[:,0])
+        plt.show()
+    # END OF DEBUG
+
+    return -sum([scoresMat[i][i] for i in range(0, len(row_idx))]) / len(row_idx)
+
+
+
+
