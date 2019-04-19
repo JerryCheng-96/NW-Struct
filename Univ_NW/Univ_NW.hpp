@@ -1,14 +1,3 @@
-using namespace std;
-
-extern "C" {
-    int arg_max(float* theArray, float* pMaxValue, int len);
-    void ReverseString(char * theString);
-    char* NW_Align(void** seq_1, int len_seq_1,
-                   void** seq_2, int len_seq_2,
-                   float (*sim_func)(void*, void*),
-                   int gap_start, int gap_ext);
-}
-
 
 int arg_max(float* theArray, float* pMaxValue, int len) {
     float maxValue = theArray[0];
@@ -89,7 +78,7 @@ char* NW_Align(void** seq_1, int len_seq_1,
     int dirValues[] = {1, -1, 0};
 
     // DEBUGGING
-    printf("Length of sequences: %d, %d\n", len_seq_1, len_seq_2);
+    //printf("Length of sequences: %d, %d\n", len_seq_1, len_seq_2);
     // END OF DEBUGGING
 
     for(int i = 1; i <= len_seq_2; i++) {

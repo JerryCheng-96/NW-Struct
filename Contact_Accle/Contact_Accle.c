@@ -1,4 +1,5 @@
 #include <math.h>
+#include "Univ_NW.h"
 
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
@@ -30,6 +31,9 @@
            *(double*)((PVTR) + 0 * (STRD)), \
            *(double*)((PVTR) + 1 * (STRD)), \
            *(double*)((PVTR) + 2 * (STRD))  )
+
+
+PyObject* pOptimizeFunc = NULL;
 
 
 /*
@@ -117,12 +121,12 @@ static PyObject* C_SurroundVectorSet(PyObject* self, PyObject* args) {
     char* pAnimoAtomsArray = (char*)PyArray_DATA(animoAtomsArray);
 
     // DEBUGGING
-    printf("Cutoff = (%lf, %lf)\nDims:Strides = ", low_cutoff, high_cutoff); 
-    int i;
-    for (i = 0; i < PyArray_NDIM(animoAtomsArray); i++) {
-        printf("%ld:%ld    ", dims[i], strides[i]);
-    } 
-    printf("\n");
+    //printf("Cutoff = (%lf, %lf)\nDims:Strides = ", low_cutoff, high_cutoff); 
+    //int i;
+    //for (i = 0; i < PyArray_NDIM(animoAtomsArray); i++) {
+    //    printf("%ld:%ld    ", dims[i], strides[i]);
+    //} 
+    //printf("\n");
 
     //i = 0;
     //int j, k;
@@ -195,10 +199,10 @@ static PyObject* C_SurroundVectorSet(PyObject* self, PyObject* args) {
                                                 //(char*)PyArray_DATA(vtr_CaCa), PyArray_STRIDE(vtr_CaCa, 1), (aa1 == 0 && aa2 == 3));
                                                 (char*)PyArray_DATA(vtr_CaCa), PyArray_STRIDE(vtr_CaCa, 1)));
                 
-                if (aa1 == 0 && aa2 == 3) {
-                    printf("ANGLECOS = %lf\n", bondAngle);
-                    printf("STRIDE = %ld\n", PyArray_STRIDE(vtr_CaN, 1));
-                }
+                //if (aa1 == 0 && aa2 == 3) {
+                //    printf("ANGLECOS = %lf\n", bondAngle);
+                //    printf("STRIDE = %ld\n", PyArray_STRIDE(vtr_CaN, 1));
+                //}
 
                 PyObject* plnNorm1 = VTR_CROSS_3D( \
                     (char*)PyArray_DATA(vtr_CaN), PyArray_STRIDE(vtr_CaN, 1), \
@@ -215,7 +219,7 @@ static PyObject* C_SurroundVectorSet(PyObject* self, PyObject* args) {
                 PyList_SetItem(contactInfo, 0, PyFloat_FromDouble(theVtrLen));
                 PyList_SetItem(contactInfo, 1, PyFloat_FromDouble(bondAngle));
                 PyList_SetItem(contactInfo, 2, PyFloat_FromDouble(torsionAngle));
-                PyList_Append(theAminoContact, contactInfo);
+                PyList_Append(theAminoContact, PyArray_FROM_O(contactInfo));
             }
         }
         PyList_Append(aminosList, theAminoContact);
@@ -225,10 +229,68 @@ static PyObject* C_SurroundVectorSet(PyObject* self, PyObject* args) {
     //Py_RETURN_NONE;
     return aminosList;
 }
+
+
+double SimFunction(void* voidPtrAmino1, void* voidPtrAmino2) {
+    PyObject* pAmino1 = (PyObject*)voidPtrAmino1; 
+    PyObject* pAmino2 = (PyObject*)voidPtrAmino2; 
+
+    if ((!PyTuple_Check(pAmino1)) || (!(PyTuple_Check(pAmino2)))) { printf("Not Tuple!!!\n"); return -1e9; }
+    //printf("Tuple sizes = %ld, %ld\n", PyTuple_Size(pAmino1), PyTuple_Size(pAmino2));
+
+    PyObject* amino1_vtr = PyTuple_GetItem(pAmino1, 0);
+    PyObject* amino2_vtr = PyTuple_GetItem(pAmino2, 0);
+    PyObject* amino1_ct = PyTuple_GetItem(pAmino1, 1);
+    PyObject* amino2_ct = PyTuple_GetItem(pAmino2, 1);
+
+    if ((!PyArray_Check(amino1_vtr)) || (!(PyArray_Check(amino2_vtr)))) { printf("Not ndarray!!!\n"); return -1e9; }
+    if ((!PyList_Check(amino1_ct)) || (!(PyList_Check(amino2_ct)))) { printf("Not List!!!\n"); return -1e9; }
+
+    //printf("%ld, %ld\n", PyArray_STRIDE(amino1_vtr, 0), PyArray_STRIDE(amino2_vtr, 0));
+
+    double itemVtr = VTR_ANGLECOS((char*)PyArray_DATA(amino1_vtr), PyArray_STRIDE(amino1_vtr, 0), 
+                                  (char*)PyArray_DATA(amino2_vtr), PyArray_STRIDE(amino2_vtr, 0));
+    if (isnan(itemVtr)) itemVtr = 0;
+    //printf("%lf\n", itemVtr);
+
+    return 0.0;
+}
+
+
+static PyObject* Aminos_NWAlign(PyObject* self, PyObject* args) {
+    PyObject* aminosList1 = NULL;
+    PyObject* aminosList2 = NULL;
+    int gap_start = 0;
+    int gap_ext = 0;
+
+    if (!PyArg_ParseTuple(args, "OOii", &aminosList1, &aminosList2, &gap_start, &gap_ext)) Py_RETURN_NONE;
+    //if ((!PyList_Check(aminosList1)) || (!PyList_Check(aminosList2))) Py_RETURN_NONE; 
+    if ((!PyList_Check(aminosList1)) || (!PyList_Check(aminosList2))) printf("Not Receiving list.\n"); 
+
+    Py_ssize_t lenAminos1 = PyList_Size(aminosList1);
+    Py_ssize_t lenAminos2 = PyList_Size(aminosList2);
+    PyObject** pAminos1 = (PyObject**)malloc(sizeof(PyObject*) * lenAminos1);
+    PyObject** pAminos2 = (PyObject**)malloc(sizeof(PyObject*) * lenAminos2);
+
+    printf("Len = %ld, %ld\n", lenAminos1, lenAminos2);
+
+    int i;
+    for (i = 0; i < lenAminos1; i++) pAminos1[i] = PyList_GetItem(aminosList1, i);
+    for (i = 0; i < lenAminos2; i++) pAminos2[i] = PyList_GetItem(aminosList2, i);
+
+    char* tracePath = NW_Align((void*)pAminos1, lenAminos1, 
+                               (void*)pAminos2, lenAminos2,
+                               SimFunction, 
+                               gap_start, gap_ext);
+
+    Py_RETURN_NONE;
+    
+}
     
 
 static PyMethodDef ContactAccelMethods[] = {
     {"C_SurroundVectorSet", C_SurroundVectorSet, METH_VARARGS, ""},
+    {"Aminos_NWAlign", Aminos_NWAlign, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL}
 };
 
@@ -247,6 +309,14 @@ int init_numpy() {
 
 PyMODINIT_FUNC
 PyInit_ContactAccel(void) {
+    Py_Initialize();
     init_numpy();
+
+    PyObject* pSciPyModule = PyImport_ImportModule("scipy.optimize._hungarian");
+    if (!pSciPyModule) printf("scipy.optimize import failed.\n");
+    pOptimizeFunc = PyObject_GetAttrString(pSciPyModule, "linear_sum_assignment");
+    if ((!pOptimizeFunc)) printf("lsa is null.\n");
+    if ((pOptimizeFunc) && (PyFunction_Check(pOptimizeFunc))) printf("lsa import succeeded.\n");
+
     return PyModule_Create(&contactAccel_module);
 }

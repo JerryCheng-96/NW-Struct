@@ -142,13 +142,14 @@ def Accle_SurroundVectorSet(chain, low_cutoff, high_cutoff, keep=1000):
         aminosAtomsCoord.append(theAminoAtoms)
     aminosAtomsCoord = np.array(aminosAtomsCoord)
 
-    print(aminosAtomsCoord[0])
-    print(aminosAtomsCoord[3])
-    print(acc.C_SurroundVectorSet(aminosAtomsCoord, low_cutoff, high_cutoff)[0])
+    #print(aminosAtomsCoord[0])
+    #print(aminosAtomsCoord[3])
+    #print(acc.C_SurroundVectorSet(aminosAtomsCoord, low_cutoff, high_cutoff)[0])
     #acc.C_SurroundVectorSet(aminosAtomsCoord, low_cutoff, high_cutoff)
     #print(np.cross(aminosAtomsCoord[0][0], aminosAtomsCoord[0][2]))
 
-    return aminosAtomsCoord
+    return acc.C_SurroundVectorSet(aminosAtomsCoord, low_cutoff, high_cutoff)
+    #return aminosAtomsCoord
 
 
 def Get_NeighborAminoNo(contactMap, low_cutoff, high_cutoff):
@@ -231,6 +232,18 @@ def GetChain(pdbAtomsList, chainId):
 #            print(i)
 
     return Chain([pdbAminoDict[aminoNo] for aminoNo in sorted(pdbAminoDict.keys())])
+
+
+def Get_Aminos(chain, low_cutoff = 4, high_cutoff = 12):
+    aminoNVtr = chain.Get_AminoNVtr()
+    neighborVtr = Accle_SurroundVectorSet(chain, low_cutoff, high_cutoff)
+
+    assert len(aminoNVtr) == len(neighborVtr)
+    aminosList = []
+    for i in range(0, len(aminoNVtr)):
+        aminosList.append((aminoNVtr[i], neighborVtr[i]))
+
+    return aminosList
 
 
 def Dbg_GetVtrLen(chain, aaNo1, aaNo2):
