@@ -1,6 +1,7 @@
 from Vector_Matrix import *
 import matplotlib.pyplot as plt
 import math
+import ContactAccel as acc
 
 
 class Atom:
@@ -117,15 +118,37 @@ class Chain:
                 theVtrLen = Len_Vtr(theVtr)
                 if low_cutoff < theVtrLen < high_cutoff:
                     bondAngle = math.acos(np.dot(vtr_CaN, theVtr) / (Len_Vtr(vtr_CaN) * Len_Vtr(theVtr)))
+                    #bondAngle = (np.dot(vtr_CaN, theVtr) / (Len_Vtr(vtr_CaN) * Len_Vtr(theVtr)))
                     plnNorm1 = np.cross(vtr_CaN, theVtr)
                     plnNorm2 = np.cross(vtr_CaN, vtr_CaC)
                     torsionAngle = math.acos(np.dot(plnNorm1, plnNorm2) / (Len_Vtr(plnNorm1) * Len_Vtr(plnNorm2)))
-                    residueLenAminos[theVtrLen] = (theVtrLen, bondAngle, torsionAngle, self.residues[j])
+                    #torsionAngle = (np.dot(plnNorm1, plnNorm2) / (Len_Vtr(plnNorm1) * Len_Vtr(plnNorm2)))
+                    residueLenAminos[theVtrLen] = (theVtrLen, bondAngle, torsionAngle)#, self.residues[j])
             residueSurroundVtr = [(residueLenAminos[aaLen])
-                                  for aaLen in sorted(residueLenAminos.keys())][:keep]
+                                  #for aaLen in sorted(residueLenAminos.keys())][:keep]
+                                  for aaLen in (residueLenAminos.keys())][:keep]
             neighborAminos.append(residueSurroundVtr)
 
         return neighborAminos
+
+
+def Accle_SurroundVectorSet(chain, low_cutoff, high_cutoff, keep=1000):
+    aminosAtomsCoord = []
+    for i in range(0, len(chain)):
+        theAminoAtoms = []
+        theAminoAtoms.append(chain.residues[i].atoms['N'].vector)
+        theAminoAtoms.append(chain.residues[i].atoms['CA'].vector)
+        theAminoAtoms.append(chain.residues[i].atoms['C'].vector)
+        aminosAtomsCoord.append(theAminoAtoms)
+    aminosAtomsCoord = np.array(aminosAtomsCoord)
+
+    print(aminosAtomsCoord[0])
+    print(aminosAtomsCoord[3])
+    print(acc.C_SurroundVectorSet(aminosAtomsCoord, low_cutoff, high_cutoff)[0])
+    #acc.C_SurroundVectorSet(aminosAtomsCoord, low_cutoff, high_cutoff)
+    #print(np.cross(aminosAtomsCoord[0][0], aminosAtomsCoord[0][2]))
+
+    return aminosAtomsCoord
 
 
 def Get_NeighborAminoNo(contactMap, low_cutoff, high_cutoff):
