@@ -1,4 +1,5 @@
 #include <math.h>
+#include <dlfcn.h>
 #include "Univ_NW.h"
 
 #define PY_SSIZE_T_CLEAN
@@ -12,7 +13,7 @@
 #define PTR_DOUBLE_VTR(PVTR, STRD, I)               (double*)((PVTR) + (I) * (STRD))
 
 
-// Definition: Simple vector operations
+// Definition: Simple vector operations}
 #define VTR_DOT_3D(PVTR1, STRD1, PVTR2, STRD2) (\
     (*(double*)((PVTR1) + (STRD1) * 0)) * (*(double*)((PVTR2) + (STRD2) * 0)) + \
     (*(double*)((PVTR1) + (STRD1) * 1)) * (*(double*)((PVTR2) + (STRD2) * 1)) + \
@@ -430,11 +431,30 @@ PyInit_ContactAccel(void) {
     Py_Initialize();
     init_numpy();
 
-    PyObject* pSciPyModule = PyImport_ImportModule("scipy.optimize._hungarian");
-    if (!pSciPyModule) printf("scipy.optimize import failed.\n");
-    pOptimizeFunc = PyObject_GetAttrString(pSciPyModule, "linear_sum_assignment");
-    if ((!pOptimizeFunc)) printf("lsa is null.\n");
-    if ((pOptimizeFunc) && (PyFunction_Check(pOptimizeFunc))) printf("lsa import succeeded.\n");
+    //PyObject* pSciPyModule = PyImport_ImportModule("scipy.optimize._hungarian");
+    //if (!pSciPyModule) printf("scipy.optimize import failed.\n");
+    //pOptimizeFunc = PyObject_GetAttrString(pSciPyModule, "linear_sum_assignment");
+    //if ((!pOptimizeFunc)) printf("lsa is null.\n");
+    //if ((pOptimizeFunc) && (PyFunction_Check(pOptimizeFunc))) printf("lsa import succeeded.\n");
+
+    typedef void (*pCLO)(double*, int, int, int*, int*);
+    void* handle = dlopen("/home/jerry/Projects/hungarian-algorithm-cpp/libhungarian.so", RTLD_NOW);
+    char* err = dlerror();
+    if (err || !handle) printf("libhungarian load failed!!!\n%s\n", err);
+    printf("libhungarian loaded at %lx\n", handle);
+    pCLO pCLinearOptimize = (pCLO)dlsym(handle, "Linear_OptAssign");
+    err = dlerror();
+    if (err) printf("Load Linear_OptAssign function failed!!!\n%s\n", err);
+    printf("lib function loaded at %lx\n", pCLinearOptimize);
+
+    double testArray[] = { 10, 19, 8, 15, 0, 10, 18, 7, 17, 0, 13, 16, 9, 14, 0, 12, 19, 8, 18, 0 };
+    int numRows[4] = {0};
+    int numCols[4] = {0};
+    pCLinearOptimize(testArray, 4, 5, numRows, numCols);
+    for (int i = 0; i < 4; i++) printf("(%d, %d)\t", numRows[i], numCols[i]);
+    printf("\n");
+     
+    dlclose(handle);
 
     return PyModule_Create(&contactAccel_module);
 }
