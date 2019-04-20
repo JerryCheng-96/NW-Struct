@@ -1,8 +1,8 @@
 from distutils.core import setup, Extension
 
-module = Extension('TestMod', sources = ["test.c"])
+module = Extension('CAccel', sources = ["C_Accle.c"])
 
-setup (name = 'TestMod',
+setup (name = 'CAccel',
        version = '1.0', 
        description = '',
        ext_modules = [module]

@@ -1,3 +1,6 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <math.h>
 #include <dlfcn.h>
 #include "Univ_NW.h"
@@ -6,6 +9,7 @@
 #include <Python.h>
 #include <numpy/arrayobject.h>
 
+#define MIN(A, B) (A) < (B) ? (A) : (B)
 
 // Definition: Accessing the data at a certain position...
 #define PTR_DOUBLE_ELEM_3(PDATA, STRD, I, J, K)     (double*)((PDATA) + (I) * (STRD)[0] + (J) * (STRD)[1] + (K) * STRD[2])
@@ -35,6 +39,8 @@
 
 
 PyObject* pOptimizeFunc = NULL;
+typedef void (*pCLO)(double*, int, int, int*, int*);
+pCLO pCLinearOptimize = NULL;
 
 
 /*
@@ -291,25 +297,45 @@ double SimFunction(void* voidPtrAmino1, void* voidPtrAmino2) {
     if (isnan(itemVtr)) itemVtr = 0;
     //printf("%lf\n", itemVtr);
     
-    if (!pOptimizeFunc) return 0.0;
-    long int contactMatNewDims[] = {len_amino1_ct, len_amino2_ct}; 
-    PyObject* contactMat = PyArray_SimpleNew(2, contactMatNewDims, NPY_DOUBLE);
-    npy_intp* contactMatDims = PyArray_DIMS(contactMat);
-    npy_intp* contactMatStrides = PyArray_STRIDES(contactMat);
-    char* pContactMatData = (char*)PyArray_DATA(contactMat);
+    if (!pCLinearOptimize) { printf("pCLinearOptimize is NULL!!!\n"); return 0.0; }
+    double* contactMatrix = (double*)malloc(sizeof(double) * len_amino1_ct * len_amino2_ct);
 
     int i, j;
     for (i = 0; i < len_amino1_ct; i++) {
         for (j = 0; j < len_amino2_ct; j++) 
-            *(double*)PTR_DOUBLE_ELEM_2(pContactMatData, contactMatStrides, i, j) = \
+            *(contactMatrix + i * len_amino2_ct + j) = \
                 //SimFunc_InternalCoord(PyList_GetItem(amino1_ct, i), PyList_GetItem(amino2_ct, j), (i == 1 && j == 1)); 
-                -SimFunc_InternalCoord(PyList_GetItem(amino1_ct, i), PyList_GetItem(amino2_ct, j)); 
+                //-SimFunc_InternalCoord(PyList_GetItem(amino1_ct, i), PyList_GetItem(amino2_ct, j)); 
+                10 - SimFunc_InternalCoord(PyList_GetItem(amino1_ct, i), PyList_GetItem(amino2_ct, j)); 
     }
 
-    PyObject* argsTuple = PyTuple_New(1);
-    PyTuple_SetItem(argsTuple, 0, contactMat);
-    PyObject* optimizeRes = PyObject_CallObject(pOptimizeFunc, argsTuple);
-    if (!(PyTuple_Check(optimizeRes)) || (!PyTuple_Size(optimizeRes) == 2)) { printf("Optimize return value error.\n"); return 0.0; }
+    int numPairs = MIN(len_amino1_ct, len_amino2_ct);
+    int* numRows = (int*)malloc(sizeof(int) * numPairs);
+    int* numCols = (int*)malloc(sizeof(int) * numPairs);
+
+    pCLinearOptimize(contactMatrix, len_amino1_ct, len_amino2_ct, numRows, numCols);
+    //for (i = 0; i < numPairs; i++) printf("(%d, %d)\t", numRows[i], numCols[i]);
+    //printf("\n");
+
+    //if (!pOptimizeFunc) return 0.0;
+    //long int contactMatNewDims[] = {len_amino1_ct, len_amino2_ct}; 
+    //PyObject* contactMat = PyArray_SimpleNew(2, contactMatNewDims, NPY_DOUBLE);
+    //npy_intp* contactMatDims = PyArray_DIMS(contactMat);
+    //npy_intp* contactMatStrides = PyArray_STRIDES(contactMat);
+    //char* pContactMatData = (char*)PyArray_DATA(contactMat);
+
+    //int i, j;
+    //for (i = 0; i < len_amino1_ct; i++) {
+    //    for (j = 0; j < len_amino2_ct; j++) 
+    //        *(double*)PTR_DOUBLE_ELEM_2(pContactMatData, contactMatStrides, i, j) = \
+    //            //SimFunc_InternalCoord(PyList_GetItem(amino1_ct, i), PyList_GetItem(amino2_ct, j), (i == 1 && j == 1)); 
+    //            -SimFunc_InternalCoord(PyList_GetItem(amino1_ct, i), PyList_GetItem(amino2_ct, j)); 
+    //}
+
+    //PyObject* argsTuple = PyTuple_New(1);
+    //PyTuple_SetItem(argsTuple, 0, contactMat);
+    //PyObject* optimizeRes = PyObject_CallObject(pOptimizeFunc, argsTuple);
+    //if (!(PyTuple_Check(optimizeRes)) || (!PyTuple_Size(optimizeRes) == 2)) { printf("Optimize return value error.\n"); return 0.0; }
 
     return 0.0;
 }
@@ -376,6 +402,7 @@ PyObject* SimFunction_Wrapper(PyObject* self, PyObject* args) {
 }
 
 static PyObject* Aminos_NWAlign(PyObject* self, PyObject* args) {
+    printf("Now in Aminos_NWAlign\n");
     PyObject* aminosList1 = NULL;
     PyObject* aminosList2 = NULL;
     int gap_start = 0;
@@ -405,7 +432,7 @@ static PyObject* Aminos_NWAlign(PyObject* self, PyObject* args) {
     
 }
     
-static PyMethodDef ContactAccelMethods[] = {
+static PyMethodDef CAccelMethods[] = {
     {"C_SurroundVectorSet", C_SurroundVectorSet, METH_VARARGS, ""},
     {"Aminos_NWAlign", Aminos_NWAlign, METH_VARARGS, ""},
     {"C_SimFunc_InternalCoord", SimFunc_InternalCoord_Wrapper, METH_VARARGS, ""},
@@ -413,12 +440,12 @@ static PyMethodDef ContactAccelMethods[] = {
     {NULL, NULL, 0, NULL}
 };
 
-static struct PyModuleDef contactAccel_module = {
+static struct PyModuleDef cAccel_module = {
     PyModuleDef_HEAD_INIT,
-    "ContactAccel", 
+    "CAccel", 
     NULL, 
     -1, 
-    ContactAccelMethods
+    CAccelMethods
 };
 
 int init_numpy() {
@@ -427,7 +454,7 @@ int init_numpy() {
 }
 
 PyMODINIT_FUNC
-PyInit_ContactAccel(void) {
+PyInit_CAccel(void) {
     Py_Initialize();
     init_numpy();
 
@@ -437,12 +464,11 @@ PyInit_ContactAccel(void) {
     //if ((!pOptimizeFunc)) printf("lsa is null.\n");
     //if ((pOptimizeFunc) && (PyFunction_Check(pOptimizeFunc))) printf("lsa import succeeded.\n");
 
-    typedef void (*pCLO)(double*, int, int, int*, int*);
-    void* handle = dlopen("/home/jerry/Projects/hungarian-algorithm-cpp/libhungarian.so", RTLD_NOW);
+    void* handle = dlopen("./libhungarian.so", RTLD_NOW);
     char* err = dlerror();
     if (err || !handle) printf("libhungarian load failed!!!\n%s\n", err);
     printf("libhungarian loaded at %lx\n", handle);
-    pCLO pCLinearOptimize = (pCLO)dlsym(handle, "Linear_OptAssign");
+    pCLinearOptimize = (pCLO)dlsym(handle, "Linear_OptAssign");
     err = dlerror();
     if (err) printf("Load Linear_OptAssign function failed!!!\n%s\n", err);
     printf("lib function loaded at %lx\n", pCLinearOptimize);
@@ -453,8 +479,6 @@ PyInit_ContactAccel(void) {
     pCLinearOptimize(testArray, 4, 5, numRows, numCols);
     for (int i = 0; i < 4; i++) printf("(%d, %d)\t", numRows[i], numCols[i]);
     printf("\n");
-     
-    dlclose(handle);
 
-    return PyModule_Create(&contactAccel_module);
+    return PyModule_Create(&cAccel_module);
 }

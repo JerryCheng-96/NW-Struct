@@ -3,6 +3,7 @@
 *.pdf
 */cmake-build-debug/
 __pycache__/
+C_Accel/build
 .idea/*
 venv/*
 pdbs/*

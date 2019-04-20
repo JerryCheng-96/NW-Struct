@@ -1,7 +1,7 @@
 from Vector_Matrix import *
 import matplotlib.pyplot as plt
 import math
-import ContactAccel as acc
+import CAccel as acc
 
 
 class Atom:
