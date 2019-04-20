@@ -1,6 +1,6 @@
 
-int arg_max(float* theArray, float* pMaxValue, int len) {
-    float maxValue = theArray[0];
+int arg_max(double* theArray, double* pMaxValue, int len) {
+    double maxValue = theArray[0];
     int maxIndex = 0;
 
     for(int i = 0; i < len; i++) {
@@ -30,16 +30,16 @@ void ReverseString(char * theString) {
 
 char* NW_Align(void** seq_1, int len_seq_1,
                void** seq_2, int len_seq_2,
-               float (*sim_func)(void*, void*),
+               double (*sim_func)(void*, void*),
                int gap_start, int gap_ext) {
 
     // Initializing the matrices
     // The rows / first layer pointers
-    float** scoresMat = (float**)malloc((len_seq_2 + 2) * sizeof(float*));
+    double** scoresMat = (double**)malloc((len_seq_2 + 2) * sizeof(double*));
     int** dirMat = (int**)malloc((len_seq_2 + 2) * sizeof(int*));
 
     // The cols
-    scoresMat[0] = (float*)malloc((len_seq_1 + 2) * (len_seq_2 + 2) * sizeof(float));
+    scoresMat[0] = (double*)malloc((len_seq_1 + 2) * (len_seq_2 + 2) * sizeof(double));
     dirMat[0] = (int*)malloc((len_seq_1 + 2) * (len_seq_2 + 2) * sizeof(int));
     for (int row = 1; row < len_seq_2 + 2; row++) {
         scoresMat[row] = scoresMat[0] + row * (len_seq_1 + 2);
@@ -74,7 +74,7 @@ char* NW_Align(void** seq_1, int len_seq_1,
 
     // Calculating scoresMat and dirMat
 
-    float scoreValues[] = {0, 0, 0};
+    double scoreValues[] = {0, 0, 0};
     int dirValues[] = {1, -1, 0};
 
     // DEBUGGING
@@ -86,7 +86,7 @@ char* NW_Align(void** seq_1, int len_seq_1,
 
             //DEBUGGING
             //printf("SeqLen (%d, %d)\n", len_seq_1, len_seq_2)
-            //printf("Now at (%d, %d)\n", i - 1, j - 1);
+            printf("Now at (%d, %d)\n", i - 1, j - 1);
 
             // Considering "local" (2x2) elements
             scoreValues[1] = scoresMat[i][j - 1] - gap_start;
@@ -98,7 +98,7 @@ char* NW_Align(void** seq_1, int len_seq_1,
             // Considering "distance" (row/col) elements
             // A distant, previous **ROW** elem "travels" here?
             for (int k = 0; k < j; k++) {
-                float theScore = scoresMat[i][k] - (j-k-1) * gap_ext - gap_start;
+                double theScore = scoresMat[i][k] - (j-k-1) * gap_ext - gap_start;
                 if (theScore > scoreValues[1]) {
                     dirValues[1] = k - j;
                     scoreValues[1] = theScore;
@@ -107,7 +107,7 @@ char* NW_Align(void** seq_1, int len_seq_1,
 
             // A distant, previous **COL** elem "travels" here?
             for (int k = 0; k < i; k++) {
-                float theScore = scoresMat[k][j] - (i-k-1) * gap_ext - gap_start;
+                double theScore = scoresMat[k][j] - (i-k-1) * gap_ext - gap_start;
                 if (theScore > scoreValues[0]) {
                     dirValues[0] = i - k;
                     scoreValues[0] = theScore;

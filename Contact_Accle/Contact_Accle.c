@@ -71,7 +71,7 @@ PyObject* VTR_CROSS_3D(char* pVtr1, int strd1, char* pVtr2, int strd2) {
     return resVtr;
 }
 
-PyObject* VTR_ADD_3D(pVtr1, strd1, pVtr2, strd2) {
+PyObject* VTR_ADD_3D(char* pVtr1, int strd1, char* pVtr2, int strd2) {
     double vtr1[] = {*(double*)((pVtr1) + (strd1) * 0), *(double*)((pVtr1) + (strd1) * 1), *(double*)((pVtr1) + (strd1) * 2)};
     double vtr2[] = {*(double*)((pVtr2) + (strd2) * 0), *(double*)((pVtr2) + (strd2) * 1), *(double*)((pVtr2) + (strd2) * 2)};
 
@@ -87,7 +87,7 @@ PyObject* VTR_ADD_3D(pVtr1, strd1, pVtr2, strd2) {
     return resVtr;
 }
 
-PyObject* VTR_SUBTRACT_3D(pVtr1, strd1, pVtr2, strd2) {
+PyObject* VTR_SUBTRACT_3D(char* pVtr1, int strd1, char* pVtr2, int strd2) {
     double vtr1[] = {*(double*)((pVtr1) + (strd1) * 0), *(double*)((pVtr1) + (strd1) * 1), *(double*)((pVtr1) + (strd1) * 2)};
     double vtr2[] = {*(double*)((pVtr2) + (strd2) * 0), *(double*)((pVtr2) + (strd2) * 1), *(double*)((pVtr2) + (strd2) * 2)};
 
@@ -230,6 +230,40 @@ static PyObject* C_SurroundVectorSet(PyObject* self, PyObject* args) {
     return aminosList;
 }
 
+double SimFunc_InternalCoord(PyObject* vtr1, PyObject* vtr2) {
+    //printf("In SimFunc_Contact\n");
+    if ((!PyArray_Check(vtr1)) || (!PyArray_Check(vtr2))) { printf("Not ndarray!\n"); return 0.0; }
+    //printf("ndims = %ld, %ld\n", PyArray_NDIM(vtr1), PyArray_NDIM(vtr2));
+
+    double vtrVals1[] = { *(double*)((char*)PyArray_DATA(vtr1) + 0 * PyArray_STRIDE(vtr1, 0)), 
+                          *(double*)((char*)PyArray_DATA(vtr1) + 1 * PyArray_STRIDE(vtr1, 0)),
+                          *(double*)((char*)PyArray_DATA(vtr1) + 2 * PyArray_STRIDE(vtr1, 0))};
+    double vtrVals2[] = { *(double*)((char*)PyArray_DATA(vtr2) + 0 * PyArray_STRIDE(vtr2, 0)), 
+                          *(double*)((char*)PyArray_DATA(vtr2) + 1 * PyArray_STRIDE(vtr2, 0)),
+                          *(double*)((char*)PyArray_DATA(vtr2) + 2 * PyArray_STRIDE(vtr2, 0))};
+    //if (showDbg) {
+    //    printf("vtr1 = %lf, %lf, %lf\n", vtrVals1[0], vtrVals1[1], vtrVals1[2]);
+    //    printf("vtr2 = %lf, %lf, %lf\n", vtrVals2[0], vtrVals2[1], vtrVals2[2]);
+    //}
+
+    double itemLength = vtrVals1[0] / vtrVals2[0];
+    itemLength = itemLength < 1 ? itemLength : (1 / itemLength);
+
+    double itemBond = cos(vtrVals1[1] - vtrVals2[1]);
+    double itemTorsion = cos(vtrVals1[2] - vtrVals2[2]);
+
+    return (itemLength + itemBond + itemTorsion) / 3;
+}
+
+PyObject* SimFunc_InternalCoord_Wrapper(PyObject* self, PyObject* args) {
+    PyObject* vtr1 = NULL;
+    PyObject* vtr2 = NULL;
+
+    if (!PyArg_ParseTuple(args, "OO", &vtr1, &vtr2)) 
+        { printf("SimFunc_InternalCoord args parse failed!!!\n"); Py_RETURN_NONE; }
+
+    return PyFloat_FromDouble(SimFunc_InternalCoord(vtr1, vtr2));
+}
 
 double SimFunction(void* voidPtrAmino1, void* voidPtrAmino2) {
     PyObject* pAmino1 = (PyObject*)voidPtrAmino1; 
@@ -245,6 +279,9 @@ double SimFunction(void* voidPtrAmino1, void* voidPtrAmino2) {
 
     if ((!PyArray_Check(amino1_vtr)) || (!(PyArray_Check(amino2_vtr)))) { printf("Not ndarray!!!\n"); return -1e9; }
     if ((!PyList_Check(amino1_ct)) || (!(PyList_Check(amino2_ct)))) { printf("Not List!!!\n"); return -1e9; }
+    
+    Py_ssize_t len_amino1_ct = PyList_Size(amino1_ct);
+    Py_ssize_t len_amino2_ct = PyList_Size(amino2_ct);
 
     //printf("%ld, %ld\n", PyArray_STRIDE(amino1_vtr, 0), PyArray_STRIDE(amino2_vtr, 0));
 
@@ -252,10 +289,90 @@ double SimFunction(void* voidPtrAmino1, void* voidPtrAmino2) {
                                   (char*)PyArray_DATA(amino2_vtr), PyArray_STRIDE(amino2_vtr, 0));
     if (isnan(itemVtr)) itemVtr = 0;
     //printf("%lf\n", itemVtr);
+    
+    if (!pOptimizeFunc) return 0.0;
+    long int contactMatNewDims[] = {len_amino1_ct, len_amino2_ct}; 
+    PyObject* contactMat = PyArray_SimpleNew(2, contactMatNewDims, NPY_DOUBLE);
+    npy_intp* contactMatDims = PyArray_DIMS(contactMat);
+    npy_intp* contactMatStrides = PyArray_STRIDES(contactMat);
+    char* pContactMatData = (char*)PyArray_DATA(contactMat);
+
+    int i, j;
+    for (i = 0; i < len_amino1_ct; i++) {
+        for (j = 0; j < len_amino2_ct; j++) 
+            *(double*)PTR_DOUBLE_ELEM_2(pContactMatData, contactMatStrides, i, j) = \
+                //SimFunc_InternalCoord(PyList_GetItem(amino1_ct, i), PyList_GetItem(amino2_ct, j), (i == 1 && j == 1)); 
+                -SimFunc_InternalCoord(PyList_GetItem(amino1_ct, i), PyList_GetItem(amino2_ct, j)); 
+    }
+
+    PyObject* argsTuple = PyTuple_New(1);
+    PyTuple_SetItem(argsTuple, 0, contactMat);
+    PyObject* optimizeRes = PyObject_CallObject(pOptimizeFunc, argsTuple);
+    if (!(PyTuple_Check(optimizeRes)) || (!PyTuple_Size(optimizeRes) == 2)) { printf("Optimize return value error.\n"); return 0.0; }
 
     return 0.0;
 }
 
+
+PyObject* SimFunction_Dbg(void* voidPtrAmino1, void* voidPtrAmino2) {
+    PyObject* pAmino1 = (PyObject*)voidPtrAmino1; 
+    PyObject* pAmino2 = (PyObject*)voidPtrAmino2; 
+
+    if ((!PyTuple_Check(pAmino1)) || (!(PyTuple_Check(pAmino2)))) { printf("Not Tuple!!!\n"); Py_RETURN_NONE; }
+    //printf("Tuple sizes = %ld, %ld\n", PyTuple_Size(pAmino1), PyTuple_Size(pAmino2));
+
+    PyObject* amino1_vtr = PyTuple_GetItem(pAmino1, 0);
+    PyObject* amino2_vtr = PyTuple_GetItem(pAmino2, 0);
+    PyObject* amino1_ct = PyTuple_GetItem(pAmino1, 1);
+    PyObject* amino2_ct = PyTuple_GetItem(pAmino2, 1);
+
+    if ((!PyArray_Check(amino1_vtr)) || (!(PyArray_Check(amino2_vtr)))) { printf("Not ndarray!!!\n"); Py_RETURN_NONE; }
+    if ((!PyList_Check(amino1_ct)) || (!(PyList_Check(amino2_ct)))) { printf("Not List!!!\n"); Py_RETURN_NONE; }
+    
+    Py_ssize_t len_amino1_ct = PyList_Size(amino1_ct);
+    Py_ssize_t len_amino2_ct = PyList_Size(amino2_ct);
+
+    //printf("%ld, %ld\n", PyArray_STRIDE(amino1_vtr, 0), PyArray_STRIDE(amino2_vtr, 0));
+
+    double itemVtr = VTR_ANGLECOS((char*)PyArray_DATA(amino1_vtr), PyArray_STRIDE(amino1_vtr, 0), 
+                                  (char*)PyArray_DATA(amino2_vtr), PyArray_STRIDE(amino2_vtr, 0));
+    if (isnan(itemVtr)) itemVtr = 0;
+    //printf("%lf\n", itemVtr);
+    
+    //if (!pOptimizeFunc) return 0.0;
+    if (!pOptimizeFunc) Py_RETURN_NONE;
+    long int contactMatNewDims[] = {len_amino1_ct, len_amino2_ct}; 
+    PyObject* contactMat = PyArray_SimpleNew(2, contactMatNewDims, NPY_DOUBLE);
+    npy_intp* contactMatDims = PyArray_DIMS(contactMat);
+    npy_intp* contactMatStrides = PyArray_STRIDES(contactMat);
+    char* pContactMatData = (char*)PyArray_DATA(contactMat);
+
+    int i, j;
+    for (i = 0; i < len_amino1_ct; i++) {
+        for (j = 0; j < len_amino2_ct; j++) 
+            *(double*)PTR_DOUBLE_ELEM_2(pContactMatData, contactMatStrides, i, j) = \
+                //SimFunc_InternalCoord(PyList_GetItem(amino1_ct, i), PyList_GetItem(amino2_ct, j), (i == 1 && j == 1)); 
+                -SimFunc_InternalCoord(PyList_GetItem(amino1_ct, i), PyList_GetItem(amino2_ct, j)); 
+    }
+
+    PyObject* argsTuple = PyTuple_New(1);
+    PyTuple_SetItem(argsTuple, 0, contactMat);
+    return PyObject_CallObject(pOptimizeFunc, argsTuple);
+
+    //return 0.0;
+    Py_RETURN_NONE;
+}
+
+
+PyObject* SimFunction_Wrapper(PyObject* self, PyObject* args) {
+    PyObject* amino1 = NULL;
+    PyObject* amino2 = NULL;
+
+    if (!PyArg_ParseTuple(args, "OO", &amino1, &amino2)) 
+        { printf("args parse failed in SimFunction_Wrapper!!!\n"); Py_RETURN_NONE; }
+
+    return SimFunction_Dbg((void*)amino1, (void*)amino2);
+}
 
 static PyObject* Aminos_NWAlign(PyObject* self, PyObject* args) {
     PyObject* aminosList1 = NULL;
@@ -287,10 +404,11 @@ static PyObject* Aminos_NWAlign(PyObject* self, PyObject* args) {
     
 }
     
-
 static PyMethodDef ContactAccelMethods[] = {
     {"C_SurroundVectorSet", C_SurroundVectorSet, METH_VARARGS, ""},
     {"Aminos_NWAlign", Aminos_NWAlign, METH_VARARGS, ""},
+    {"C_SimFunc_InternalCoord", SimFunc_InternalCoord_Wrapper, METH_VARARGS, ""},
+    {"C_SimFunc_Amino", SimFunction_Wrapper, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL}
 };
 
